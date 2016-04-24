@@ -12,12 +12,8 @@ https://github.com/aymericdamien/TensorFlow-Examples/tree/master/examples/3%20-%
 
 TODO:
 
+Implement batched training:
+  Loss function should operate only on sliced output.
+
 Implement NTM.
-  See RNN for reference.
-
-Write mini-batch sequence generation.
-  Each mini-batch has sequences with the same randomized length.
-
-Write loss function.
-  Only backprop with respect to output sequence.
-  Dont include padding characters.
+  See RNN for reference about how to implement istate.
