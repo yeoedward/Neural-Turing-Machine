@@ -4,11 +4,18 @@ import numpy as np
 import random
 
 # Define loss and optimizer
-def var_seq_loss(_preds, _y):
-    return tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(_preds, _y))
+def var_seq_loss(preds, y, nsteps):
+  seq_len = (nsteps[0] - 1) / 2
+  start = seq_len + 1
+  output_seq = tf.slice(
+    preds,
+    tf.pack([0, start, 0]),
+    tf.pack([-1, seq_len, -1]),
+  )
+  return tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(output_seq, y))
 
-def predict(_preds):
-    return tf.sigmoid(_preds)
+def predict(preds):
+  return tf.sigmoid(preds)
 
 def create_rnn(max_steps, n_input, n_hidden):
   learning_rate = 0.001
@@ -17,7 +24,7 @@ def create_rnn(max_steps, n_input, n_hidden):
   x = tf.placeholder("float", [None, None, n_input])
   istate = tf.placeholder("float", [None, 2*n_hidden])
   y = tf.placeholder("float", [None, None, n_input])
-  nsteps = tf.placeholder("float")
+  nsteps = tf.placeholder("int32")
 
   weights = {
       'hidden': tf.Variable(tf.random_normal([n_input, n_hidden])),
@@ -38,21 +45,21 @@ def create_rnn(max_steps, n_input, n_hidden):
   # Define a lstm cell with tensorflow
   lstm_cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
   # Split data because rnn cell needs a list of inputs for the RNN inner loop
-  # _max_steps * (batch_size, _n_hidden)
+  # _max_steps * (batch_size, n_hidden)
   X = tf.split(0, max_steps, X)
   outputs, states = rnn.rnn(lstm_cell, X,
                             initial_state=istate,
                             sequence_length=nsteps)
   outputs = tf.pack(outputs)
 
-  # Transpose to (batch_size, _max_steps, _n_hidden)
+  # Transpose to (batch_size, max_steps, n_hidden)
   outputs = tf.transpose(outputs, [1, 0, 2])
   outputs = tf.reshape(outputs, [-1, n_hidden])
   preds = tf.matmul(outputs, weights['out']) + biases['out']
   pred = tf.reshape(preds, [-1, max_steps, n_input])
 
   # Loss functions
-  cost = var_seq_loss(pred, y)
+  cost = var_seq_loss(pred, y, nsteps)
   optimizer = tf.train.RMSPropOptimizer(
   learning_rate=learning_rate).minimize(cost)
 
@@ -87,9 +94,8 @@ def gen_seq(nseqs, max_steps, seq_len, nbits):
     # Dummy inputs after the delimeter / outputs before the delimiter
     dummies = [zeros] * seq_len
     x = seq + [ones] + dummies + pad
-    y = dummies + [ones] + seq + pad
     xs.append(x)
-    ys.append(y)
+    ys.append(seq)
   return np.array(xs), np.array(ys), np.tile(nsteps, nseqs)
 
 def train(
