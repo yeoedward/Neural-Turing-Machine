@@ -17,6 +17,7 @@ def create_rnn(max_steps, n_input, n_hidden):
   x = tf.placeholder("float", [None, None, n_input])
   istate = tf.placeholder("float", [None, 2*n_hidden])
   y = tf.placeholder("float", [None, None, n_input])
+  nsteps = tf.placeholder("float")
 
   weights = {
       'hidden': tf.Variable(tf.random_normal([n_input, n_hidden])),
@@ -40,7 +41,8 @@ def create_rnn(max_steps, n_input, n_hidden):
   # _max_steps * (batch_size, _n_hidden)
   X = tf.split(0, max_steps, X)
   outputs, states = rnn.rnn(lstm_cell, X,
-                            initial_state=istate)
+                            initial_state=istate,
+                            sequence_length=nsteps)
   outputs = tf.pack(outputs)
 
   # Transpose to (batch_size, _max_steps, _n_hidden)
@@ -61,10 +63,12 @@ def create_rnn(max_steps, n_input, n_hidden):
     'x': x,
     'y': y,
     'istate': istate,
+    'steps': nsteps,
   }
 
 def gen_seq(nseqs, max_steps, seq_len, nbits):
-  assert 2 * seq_len + 1 <= max_steps
+  nsteps = 2*seq_len + 1
+  assert nsteps <= max_steps
   zeros = [0] * nbits
   ones = [1] * nbits
   xs = []
@@ -78,7 +82,7 @@ def gen_seq(nseqs, max_steps, seq_len, nbits):
             [int(digit) for digit in '{0:08b}'.format(num)]
             for num in seq
           ]
-    npad = max_steps - (2 * seq_len + 1)
+    npad = max_steps - nsteps
     pad = [zeros] * npad
     # Dummy inputs after the delimeter / outputs before the delimiter
     dummies = [zeros] * seq_len
@@ -86,7 +90,7 @@ def gen_seq(nseqs, max_steps, seq_len, nbits):
     y = dummies + [ones] + seq + pad
     xs.append(x)
     ys.append(y)
-  return np.array(xs), np.array(ys)
+  return np.array(xs), np.array(ys), np.tile(nsteps, nseqs)
 
 def train(
     model,
@@ -107,19 +111,31 @@ def train(
 
   while step * batch_size < training_iters:
     seq_len = random.randint(1, 20)
-    xs, ys = gen_seq(
+    xs, ys, nsteps = gen_seq(
       nseqs=batch_size,
       max_steps=max_steps,
       seq_len=seq_len,
       nbits=n_input,
     )
-    sess.run(model['optimizer'],
-             feed_dict={model['x']: xs, model['y']: ys,
-                        model['istate']: np.zeros((batch_size, 2*n_hidden))})
+    sess.run(
+      model['optimizer'],
+      feed_dict={
+        model['x']: xs,
+        model['y']: ys,
+        model['istate']: np.zeros((batch_size, 2*n_hidden)),
+        model['steps']: nsteps,
+      },
+    )
     if step % display_step == 0:
-        loss = sess.run(model['cost'], feed_dict={
-          model['x']: xs, model['y']: ys,
-          model['istate']: np.zeros((batch_size, 2*n_hidden))})
+        loss = sess.run(
+          model['cost'],
+          feed_dict={
+            model['x']: xs,
+            model['y']: ys,
+            model['istate']: np.zeros((batch_size, 2*n_hidden)),
+            model['steps']: nsteps,
+          },
+        )
         print "Iter " + str(step*batch_size) + (
           ", Minibatch Loss= " + "{:.6f}".format(loss))
     step += 1
