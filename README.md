@@ -6,10 +6,6 @@ Paper: http://arxiv.org/abs/1410.5401
 
 TODO:
 
-  Implement batched training:
-
-    Replace split with unpack()
-
   Implement NTM:
 
     See RNN for reference about how to implement istate.
@@ -26,8 +22,9 @@ Copy Task:
         possibly more efficient because of matrix ops.
     
     For RNN, we set max_steps so we don't have to create multiple computation
-      graphs. In particular, the tf.split() function requires the number of
-      steps as a python integer.
+      graphs. In particular, the tf.split/tf.unpack functions require
+      the number of steps as a python integer (i.e. we need to know it
+      when we're building the graph).
 
 Citations:
 
