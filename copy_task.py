@@ -47,9 +47,12 @@ def create_rnn(max_steps, n_input, n_hidden):
   # Split data because rnn cell needs a list of inputs for the RNN inner loop
   # _max_steps * (batch_size, n_hidden)
   X = tf.split(0, max_steps, X)
-  outputs, states = rnn.rnn(lstm_cell, X,
-                            initial_state=istate,
-                            sequence_length=nsteps)
+  outputs, _ = rnn.rnn(
+      lstm_cell,
+      X,
+      initial_state=istate,
+      sequence_length=nsteps,
+  )
   outputs = tf.pack(outputs)
 
   # Transpose to (batch_size, max_steps, n_hidden)
@@ -146,12 +149,6 @@ def train(
           ", Minibatch Loss= " + "{:.6f}".format(loss))
     step += 1
   print "Optimization Finished!"
-
-def test(pred):
-  test_xs, test_ys = gen_seq(1)
-  print(test_xs.shape)
-  sess.run(predict(pred), feed_dict={x: test_xs,
-                                     istate: np.zeros((1, 2*n_hidden))})
 
 # Training Parameters
 max_steps = 41

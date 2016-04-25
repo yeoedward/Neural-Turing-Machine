@@ -6,9 +6,15 @@ Paper: http://arxiv.org/abs/1410.5401
 
 TODO:
 
-  Implement NTM:
+  Test NTM Memory mechanism.
 
-    See RNN for reference about how to implement istate.
+  Implement controller.
+
+  Integrate with copy task.
+
+  Change rnn to dynamic rnn to eliminate need for maxsteps.
+
+  Run on GPUs.
 
 Copy Task:
 
