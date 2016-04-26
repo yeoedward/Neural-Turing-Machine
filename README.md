@@ -6,7 +6,8 @@ Paper: http://arxiv.org/abs/1410.5401
 
 TODO:
 
-  Integrate with copy task.
+  Fix rotation problem. Using tensorarray creates problems with
+    optimizer -- do we need to update gradient?
 
   Run on GPUs.
 
@@ -24,9 +25,9 @@ Training details:
     dynamic_rnn requires the number of steps to be the same across minibatches
       so we need to pad to max_steps.
 
-Upgrade to latest Tensorflow v0.8. Pip automatically uses v0.7+
+Upgrade to latest Tensorflow v0.8 (Pip automatically uses v0.7+):
 
-  sudo pip install --upgrade https://storage.googleapis.com/tensorflow/mac/tensorflow-0.8.0-py2-none-any.whl
+sudo pip install --upgrade https://storage.googleapis.com/tensorflow/mac/tensorflow-0.8.0-py2-none-any.whl
 
 Citations:
 

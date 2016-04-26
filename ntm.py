@@ -236,7 +236,10 @@ class NTMCell(rnn_cell.RNNCell):
 
       # Location focusing
       wg = head["interp"] * wc + (1 - head["interp"]) * w0
-      ws = NTMCell.rotate(wg, head["shift"])
+      # TODO rotate creates problems with optimizer?
+      # Need to compute gradients?
+      #ws = NTMCell.rotate(wg, head["shift"])
+      ws = wg
       ws_pow = tf.pow(ws, head["sharp"])
       w1 = ws_pow / tf.reduce_sum(ws_pow)
 

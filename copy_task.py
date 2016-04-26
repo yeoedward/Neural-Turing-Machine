@@ -1,7 +1,8 @@
 import tensorflow as tf
-from tensorflow.models.rnn import rnn, rnn_cell
+from tensorflow.models.rnn import rnn
 import numpy as np
 import random
+import ntm
 
 # Define loss and optimizer
 def var_seq_loss(preds, y, nsteps):
@@ -17,48 +18,35 @@ def var_seq_loss(preds, y, nsteps):
 def predict(preds):
   return tf.sigmoid(preds)
 
-def create_rnn(max_steps, n_input, n_hidden):
-  learning_rate = 0.001
-
+def create_rnn(max_steps, n_input):
   # Batch size, max_steps, n_input
   x = tf.placeholder("float", [None, None, n_input])
-  istate = tf.placeholder("float", [None, 2*n_hidden])
   y = tf.placeholder("float", [None, None, n_input])
+  istate = tf.placeholder("float", [None, 128*20+128])
   nsteps = tf.placeholder("int32")
-
-  weights = {
-      'hidden': tf.Variable(tf.random_normal([n_input, n_hidden])),
-      'out': tf.Variable(tf.random_normal([n_hidden, n_input]))
-  }
-  biases = {
-      'hidden': tf.Variable(tf.random_normal([n_hidden])),
-      'out': tf.Variable(tf.random_normal([n_input]))
-  }
-
-  X = x
-  # Input: (batch_size, max_steps, n_input)
-  # (batch_size * max_steps, n_input)
-  X = tf.reshape(X, [-1, n_input])
-  X = tf.matmul(X, weights['hidden']) + biases['hidden']
-  X = tf.reshape(X, [-1, max_steps, n_hidden])
-  lstm_cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
+  # TODO Expose params.
+  ntm_cell = ntm.NTMCell(
+      n_inputs=n_input,
+      n_hidden=100,
+      mem_nrows=128,
+      mem_ncols=20,
+  )
   outputs, _ = rnn.dynamic_rnn(
-      lstm_cell,
-      X,
+      ntm_cell,
+      x,
       initial_state=istate,
       sequence_length=nsteps,
   )
-  outputs = tf.reshape(outputs, [-1, n_hidden])
-  preds = tf.matmul(outputs, weights['out']) + biases['out']
-  pred = tf.reshape(preds, [-1, max_steps, n_input])
 
   # Loss functions
-  cost = var_seq_loss(pred, y, nsteps)
+  cost = var_seq_loss(outputs, y, nsteps)
+  # TODO Implement gradient clipping as in the paper?
   optimizer = tf.train.RMSPropOptimizer(
-  learning_rate=learning_rate).minimize(cost)
+    learning_rate=1e-4,
+  ).minimize(cost)
 
   return {
-    'pred': pred,
+    'pred': outputs,
     'cost': cost,
     'optimizer': optimizer,
     'x': x,
@@ -95,7 +83,6 @@ def gen_seq(nseqs, max_steps, seq_len, nbits):
 def train(
     model,
     n_input,
-    n_hidden,
     max_steps,
     training_iters=100000,
     batch_size=128,
@@ -122,7 +109,8 @@ def train(
       feed_dict={
         model['x']: xs,
         model['y']: ys,
-        model['istate']: np.zeros((batch_size, 2*n_hidden)),
+        # TODO Refactor magic number
+        model['istate']: np.ones((batch_size, 128*20+128)),
         model['steps']: nsteps,
       },
     )
@@ -132,7 +120,8 @@ def train(
           feed_dict={
             model['x']: xs,
             model['y']: ys,
-            model['istate']: np.zeros((batch_size, 2*n_hidden)),
+            # TODO Refactor magic number
+            model['istate']: np.ones((batch_size, 128*20+128)),
             model['steps']: nsteps,
           },
         )
@@ -144,13 +133,11 @@ def train(
 # Training Parameters
 max_steps = 41
 n_input = 8
-n_hidden = 128
-model = create_rnn(max_steps, n_input, n_hidden)
+model = create_rnn(max_steps, n_input)
 
 if __name__ == "__main__":
   train(
     model=model,
     n_input=n_input,
-    n_hidden=n_hidden,
     max_steps=max_steps,
   )
