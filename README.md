@@ -6,8 +6,7 @@ Paper: http://arxiv.org/abs/1410.5401
 
 TODO:
 
-  Fix rotation problem. Using tensorarray creates problems with
-    optimizer -- do we need to update gradient?
+  Define gradient for custom rotation op.
 
   Run on GPUs.
 
@@ -24,6 +23,10 @@ Training details:
     
     dynamic_rnn requires the number of steps to be the same across minibatches
       so we need to pad to max_steps.
+
+Build user op in tensorflow/tensorflow/core/user_ops/:
+
+bazel build -c opt //tensorflow/core/user_ops:rotate.so
 
 Upgrade to latest Tensorflow v0.8 (Pip automatically uses v0.7+):
 
