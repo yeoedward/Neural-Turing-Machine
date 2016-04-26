@@ -6,10 +6,6 @@ Paper: http://arxiv.org/abs/1410.5401
 
 TODO:
 
-  Test NTM addressing mechanism.
-
-  Implement controller.
-
   Integrate with copy task.
 
   Change rnn to dynamic rnn to eliminate need for maxsteps.
