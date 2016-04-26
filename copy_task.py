@@ -38,7 +38,7 @@ def create_rnn(max_steps, n_input, n_hidden):
   X = x
   # Input: (batch_size, _max_steps, n_input)
   X = tf.transpose(X, [1, 0, 2]) 
-  # (_max_steps * batch_size, n_input)
+  # (max_steps * batch_size, n_input)
   X = tf.reshape(X, [-1, n_input])
   # Linear activation
   X = tf.matmul(X, weights['hidden']) + biases['hidden']

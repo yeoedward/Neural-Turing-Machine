@@ -6,9 +6,9 @@ Paper: http://arxiv.org/abs/1410.5401
 
 TODO:
 
-  Integrate with copy task.
-
   Change rnn to dynamic rnn to eliminate need for maxsteps.
+
+  Integrate with copy task.
 
   Run on GPUs.
 

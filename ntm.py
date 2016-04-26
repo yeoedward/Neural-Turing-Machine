@@ -132,7 +132,6 @@ class NTMCell(rnn_cell.RNNCell):
     hidden = tf.nn.relu(hidden)
 
     output = tf.matmul(hidden, weights["output"]) + biases["output"]
-    output = tf.sigmoid(output)
 
     key = tf.matmul(hidden, weights["key"]) + biases["key"]
 
