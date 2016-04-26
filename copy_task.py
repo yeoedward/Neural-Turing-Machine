@@ -36,27 +36,18 @@ def create_rnn(max_steps, n_input, n_hidden):
   }
 
   X = x
-  # Input: (batch_size, _max_steps, n_input)
-  X = tf.transpose(X, [1, 0, 2]) 
-  # (max_steps * batch_size, n_input)
+  # Input: (batch_size, max_steps, n_input)
+  # (batch_size * max_steps, n_input)
   X = tf.reshape(X, [-1, n_input])
-  # Linear activation
   X = tf.matmul(X, weights['hidden']) + biases['hidden']
-  # Define a lstm cell with tensorflow
+  X = tf.reshape(X, [-1, max_steps, n_hidden])
   lstm_cell = rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
-  # Split data because rnn cell needs a list of inputs for the RNN inner loop
-  # _max_steps * (batch_size, n_hidden)
-  X = tf.split(0, max_steps, X)
-  outputs, _ = rnn.rnn(
+  outputs, _ = rnn.dynamic_rnn(
       lstm_cell,
       X,
       initial_state=istate,
       sequence_length=nsteps,
   )
-  outputs = tf.pack(outputs)
-
-  # Transpose to (batch_size, max_steps, n_hidden)
-  outputs = tf.transpose(outputs, [1, 0, 2])
   outputs = tf.reshape(outputs, [-1, n_hidden])
   preds = tf.matmul(outputs, weights['out']) + biases['out']
   pred = tf.reshape(preds, [-1, max_steps, n_input])

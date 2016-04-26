@@ -6,31 +6,27 @@ Paper: http://arxiv.org/abs/1410.5401
 
 TODO:
 
-  Change rnn to dynamic rnn to eliminate need for maxsteps.
-
   Integrate with copy task.
 
   Run on GPUs.
 
-Copy Task:
+Training details:
 
   Train in minibatches:
 
-    Freshly generated because we can.
+    Freshly generated, because we can.
 
     All sequences within minibatch are of the same random length.
 
       Tensors that are of the same shape are easier to deal with and
         possibly more efficient because of matrix ops.
     
-    For RNN, we set max_steps so we don't have to create multiple computation
-      graphs. In particular, the tf.split/tf.unpack functions require
-      the number of steps as a python integer (i.e. we need to know it
-      when we're building the graph).
+    dynamic_rnn requires the number of steps to be the same across minibatches
+      so we need to pad to max_steps.
 
-Installation:
+Upgrade to latest Tensorflow v0.8. Pip automatically uses v0.7+
 
-sudo pip install --upgrade https://storage.googleapis.com/tensorflow/mac/tensorflow-0.8.0-py2-none-any.whl
+  sudo pip install --upgrade https://storage.googleapis.com/tensorflow/mac/tensorflow-0.8.0-py2-none-any.whl
 
 Citations:
 
