@@ -85,7 +85,7 @@ class NTMCell(rnn_cell.RNNCell):
       "hidden": tf.get_variable(
         name="hidden_bias",
         shape=[self.n_hidden],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(1, 0.1),
       ),
       "output": tf.get_variable(
         name="output_bias",
@@ -143,7 +143,7 @@ class NTMCell(rnn_cell.RNNCell):
     key = tf.matmul(hidden, weights["key"]) + biases["key"]
 
     key_str = tf.matmul(hidden, weights["key_str"]) + biases["key_str"]
-    key_str = tf.exp(key_str) + 1
+    key_str = tf.exp(key_str)
 
     interp = tf.matmul(hidden, weights["interp"]) + biases["interp"]
     interp = tf.sigmoid(interp)
@@ -152,7 +152,7 @@ class NTMCell(rnn_cell.RNNCell):
     shift = tf.exp(shift) / tf.reduce_sum(tf.exp(shift))
 
     sharp = tf.matmul(hidden, weights["sharp"]) + biases["sharp"]
-    sharp = tf.exp(sharp) + 2
+    sharp = tf.exp(sharp) + 1
 
     add = tf.matmul(hidden, weights["add"]) + biases["add"]
 

@@ -84,7 +84,7 @@ def train(
     model,
     n_input,
     max_steps,
-    training_iters=10000,
+    training_iters=1000000,
     batch_size=128,
     display_step=10,
     ):

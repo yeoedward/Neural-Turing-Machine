@@ -6,7 +6,7 @@ Paper: http://arxiv.org/abs/1410.5401
 
 TODO:
 
-  Test rotate gradient op.
+  Solve NaN numerical instability.
 
   Run on GPUs.
 
