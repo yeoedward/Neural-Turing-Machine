@@ -1,8 +1,15 @@
 import tensorflow as tf
 from tensorflow.models.rnn import rnn_cell
+from tensorflow.python.framework import ops
 rotate = tf.load_op_library(
   "tensorflow/bazel-bin/tensorflow/core/user_ops/rotate.so",
 )
+@ops.RegisterGradient("NTMRotate")
+def _ntm_rotate_grad(op, grad):
+  weights = op.inputs[0]
+  shifts = op.inputs[1]
+  weights_grad, shifts_grad = rotate.ntm_rotate_grad(grad, weights, shifts);
+  return [weights_grad, shifts_grad]
 
 class NTMCell(rnn_cell.RNNCell):
   def __init__(self, n_inputs, n_hidden, mem_nrows, mem_ncols):

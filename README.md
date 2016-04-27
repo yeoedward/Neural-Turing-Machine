@@ -6,7 +6,7 @@ Paper: http://arxiv.org/abs/1410.5401
 
 TODO:
 
-  Define gradient for custom rotation op.
+  Test rotate gradient op.
 
   Run on GPUs.
 

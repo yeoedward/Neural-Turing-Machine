@@ -18,8 +18,8 @@ class NTMRotateOp : public OpKernel {
     auto weights = weights_tensor.flat<float>();
     const Tensor& shifts_tensor = context->input(1);
     auto shifts = shifts_tensor.flat<float>();
-    const TensorShape& weights_shape = weights_tensor.shape();
 
+    const TensorShape& weights_shape = weights_tensor.shape();
     OP_REQUIRES(context, weights_shape.dims() == 2,
                errors::InvalidArgument("Weights tensor rank: 2 but got: ",
                                        weights_shape.dims()));
@@ -43,8 +43,6 @@ class NTMRotateOp : public OpKernel {
         float total = 0;
         for (int k = 0; k < nrows; k++) {
           int shift_idx = (((j - k) % nshift) + nshift) % nshift;
-          assert(shift_idx >= 0);
-          assert(shift_idx < nshift);
           total += weights(i*nrows + k) * shifts(i*nshift + shift_idx);
         }
         output(i*nrows + j) = total;
