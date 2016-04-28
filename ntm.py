@@ -144,10 +144,13 @@ class NTMCell(rnn_cell.RNNCell):
       ),
     }
 
-    for _, var in weights.iteritems():
-      NTMCell.variable_summaries(var, var.name)
-    for _, var in biases.iteritems():
-      NTMCell.variable_summaries(var, var.name)
+    # TODO Disabled logging until we find the NaNs!
+    #layer_name = "controller"
+    #with tf.name_scope(layer_name):
+    #  for _, var in weights.iteritems():
+    #    NTMCell.variable_summaries(var, var.name)
+    #  for _, var in biases.iteritems():
+    #    NTMCell.variable_summaries(var, var.name)
 
     return weights, biases
 

@@ -88,11 +88,13 @@ def train(
     batch_size=128,
     display_step=10,
     ):
+  sess = tf.Session()
+  #merged = tf.merge_all_summaries()
+  # TODO Disabled until we find NaNs!
+  #train_writer = tf.train.SummaryWriter("log", sess.graph)
+
   # Initializing the variables
   init = tf.initialize_all_variables()
-
-  # Launch the graph
-  sess = tf.Session()
   sess.run(init)
   step = 1
 
@@ -114,6 +116,7 @@ def train(
         model['steps']: nsteps,
       },
     )
+
     if step % display_step == 0:
         loss = sess.run(
           model['cost'],
@@ -127,6 +130,8 @@ def train(
         )
         print "Iter " + str(step*batch_size) + (
           ", Minibatch Loss= " + "{:.6f}".format(loss))
+        # TODO Enable after finding NaNs!
+        #train_writer.add_summary(summary, step)
     step += 1
   print "Optimization Finished!"
 
