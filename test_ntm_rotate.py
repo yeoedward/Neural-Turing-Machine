@@ -1,7 +1,8 @@
 import tensorflow as tf
-ntm_rotate_module = tf.load_op_library(
-  "tensorflow/bazel-bin/tensorflow/core/user_ops/rotate.so",
-)
+import tensorflow.python.user_ops as ntm_rotate_module
+#ntm_rotate_module = tf.load_op_library(
+#  "tensorflow/bazel-bin/tensorflow/core/user_ops/rotate.so",
+#)
 weights = tf.constant([
   [1., 2., 3., 4., 5., 6., 7.],
   [8., 9., 10., 11., 12., 13., 14.],

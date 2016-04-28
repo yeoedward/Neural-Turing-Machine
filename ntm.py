@@ -1,9 +1,12 @@
 import tensorflow as tf
 from tensorflow.models.rnn import rnn_cell
 from tensorflow.python.framework import ops
-rotate = tf.load_op_library(
-  "tensorflow/bazel-bin/tensorflow/core/user_ops/rotate.so",
-)
+import tensorflow.python.user_ops as rotate
+# This is unnecessary after rebuilding tensorflow with the
+# user op in the appropriate directory.
+#rotate = tf.load_op_library(
+#  "tensorflow/bazel-bin/tensorflow/core/user_ops/rotate.so",
+#)
 @ops.RegisterGradient("NTMRotate")
 def _ntm_rotate_grad(op, grad):
   weights = op.inputs[0]
@@ -29,6 +32,18 @@ class NTMCell(rnn_cell.RNNCell):
   def zero_state(self, batch_size, dtype):
     state_size = self.mem_nrows * self.mem_ncols + self.mem_nrows
     return tf.ones([batch_size, state_size], dtype)
+
+  @staticmethod
+  def variable_summaries(var, name):
+    with tf.name_scope("summaries"):
+      mean = tf.reduce_mean(var)
+      tf.scalar_summary('mean/' + name, mean)
+      with tf.name_scope('stddev'):
+        stddev = tf.sqrt(tf.reduce_sum(tf.square(var - mean)))
+      tf.scalar_summary('sttdev/' + name, stddev)
+      tf.scalar_summary('max/' + name, tf.reduce_max(var))
+      tf.scalar_summary('min/' + name, tf.reduce_min(var))
+      tf.histogram_summary(name, var)
 
   def get_params(self):
   #TODO Expose constants as args in constructor.
@@ -128,6 +143,11 @@ class NTMCell(rnn_cell.RNNCell):
         initializer=tf.random_normal_initializer(0, 0.1),
       ),
     }
+
+    for _, var in weights.iteritems():
+      NTMCell.variable_summaries(var, var.name)
+    for _, var in biases.iteritems():
+      NTMCell.variable_summaries(var, var.name)
 
     return weights, biases
 
