@@ -29,10 +29,6 @@ class NTMCell(rnn_cell.RNNCell):
   def output_size(self):
     return self.n_inputs
 
-  def zero_state(self, batch_size, dtype):
-    state_size = self.mem_nrows * self.mem_ncols + self.mem_nrows
-    return tf.ones([batch_size, state_size], dtype)
-
   @staticmethod
   def variable_summaries(var, name):
     with tf.name_scope("summaries"):
@@ -48,51 +44,52 @@ class NTMCell(rnn_cell.RNNCell):
   def get_params(self):
   #TODO Expose constants as args in constructor.
     n_first_layer = self.n_inputs + self.mem_ncols
+    weight_var = 0.1
     weights = {
       "hidden": tf.get_variable(
         name="hidden_weight",
         shape=[n_first_layer, self.n_hidden],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "output": tf.get_variable(
         name="output_weight",
         shape=[self.n_hidden, self.n_inputs],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "key": tf.get_variable(
         name="key_weight",
         shape=[self.n_hidden, self.mem_ncols],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "key_str": tf.get_variable(
         name="key_str_weight",
         shape=[self.n_hidden, 1],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "interp": tf.get_variable(
         name="interp_weight",
         shape=[self.n_hidden, 1],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "shift": tf.get_variable(
         name="shift_weight",
         shape=[self.n_hidden, 3],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "sharp": tf.get_variable(
         name="sharp_weight",
         shape=[self.n_hidden, 1],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "add": tf.get_variable(
         name="add_weight",
         shape=[self.n_hidden, self.mem_ncols],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "erase": tf.get_variable(
         name="erase_weight",
         shape=[self.n_hidden, self.mem_ncols],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
     }
 
@@ -100,51 +97,51 @@ class NTMCell(rnn_cell.RNNCell):
       "hidden": tf.get_variable(
         name="hidden_bias",
         shape=[self.n_hidden],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "output": tf.get_variable(
         name="output_bias",
         shape=[self.n_inputs],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "key": tf.get_variable(
         name="key_bias",
         shape=[self.mem_ncols],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "key_str": tf.get_variable(
         name="key_str_bias",
         shape=[1],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "interp": tf.get_variable(
         name="interp_bias",
         shape=[1],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "shift": tf.get_variable(
         name="shift_bias",
         shape=[3],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "sharp": tf.get_variable(
         name="sharp_bias",
         shape=[1],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "add": tf.get_variable(
         name="add_bias",
         shape=[self.mem_ncols],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "erase": tf.get_variable(
         name="erase_bias",
         shape=[self.mem_ncols],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
     }
 
-    # TODO Disabled logging until we find the NaNs!
+    # TODO Too slow!
     #layer_name = "controller"
     #with tf.name_scope(layer_name):
     #  for _, var in weights.iteritems():
@@ -166,7 +163,7 @@ class NTMCell(rnn_cell.RNNCell):
     key = tf.matmul(hidden, weights["key"]) + biases["key"]
 
     key_str = tf.matmul(hidden, weights["key_str"]) + biases["key_str"]
-    key_str = tf.exp(key_str)
+    key_str = tf.nn.softplus(key_str)
 
     interp = tf.matmul(hidden, weights["interp"]) + biases["interp"]
     interp = tf.sigmoid(interp)
@@ -175,7 +172,7 @@ class NTMCell(rnn_cell.RNNCell):
     shift = tf.exp(shift) / tf.reduce_sum(tf.exp(shift))
 
     sharp = tf.matmul(hidden, weights["sharp"]) + biases["sharp"]
-    sharp = tf.exp(sharp) + 1
+    sharp = tf.nn.relu(sharp) + 1
 
     add = tf.matmul(hidden, weights["add"]) + biases["add"]
 

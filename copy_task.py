@@ -97,8 +97,8 @@ def train(
     display_step=10,
     ):
   sess = tf.Session()
+  # TODO Too slow!
   #merged = tf.merge_all_summaries()
-  # TODO Disabled until we find NaNs!
   #train_writer = tf.train.SummaryWriter("log", sess.graph)
 
   # Initializing the variables
@@ -106,40 +106,53 @@ def train(
   sess.run(init)
   step = 1
 
-  while step * batch_size < training_iters:
-    seq_len = random.randint(1, 20)
-    xs, ys, nsteps = gen_seq(
+  # We generate a finite amount of training data even
+  # though we could theoretically have infinite data
+  # for debugging purposes (loss should almost always decrease).
+  training_data = []
+  nbatches = 10
+  for i in xrange(nbatches):
+    seq_len = random.randint(18, 20)
+    (xs, ys, nsteps) = gen_seq(
       nseqs=batch_size,
       max_steps=max_steps,
       seq_len=seq_len,
       nbits=n_input,
     )
+    training_data.append((xs, ys, nsteps))
+  batch_idx = 0
+
+  print "Training commencing..."
+  while step * batch_size < training_iters:
+    xs, ys, nsteps = training_data[batch_idx]
+    batch_idx = (batch_idx + 1) % nbatches
+    # TODO Is this the right thing to do?
+    # TODO Refactor magic number
+    istate = np.random.uniform(size=(batch_size, 128*20+128))
     sess.run(
       model['optimizer'],
       feed_dict={
         model['x']: xs,
         model['y']: ys,
-        # TODO Refactor magic number
-        model['istate']: np.ones((batch_size, 128*20+128)),
+        model['istate']: istate,
         model['steps']: nsteps,
       },
     )
-
     if step % display_step == 0:
         loss = sess.run(
           model['cost'],
           feed_dict={
             model['x']: xs,
             model['y']: ys,
-            # TODO Refactor magic number
-            model['istate']: np.ones((batch_size, 128*20+128)),
+            model['istate']: istate,
             model['steps']: nsteps,
           },
         )
         print "Iter " + str(step*batch_size) + (
           ", Minibatch Loss= " + "{:.6f}".format(loss))
-        # TODO Enable after finding NaNs!
+        # TODO Too slow!
         #train_writer.add_summary(summary, step)
+
     step += 1
   print "Optimization Finished!"
 
