@@ -131,7 +131,7 @@ def train(
     batch_idx = (batch_idx + 1) % nbatches
     # TODO Is this the right thing to do?
     # TODO Refactor magic number
-    istate = np.random.uniform(size=(batch_size, mem_nrow*mem_ncol + mem_nrow))
+    istate = np.ones((batch_size, mem_nrow*mem_ncol + mem_nrow))
     sess.run(
       model['optimizer'],
       feed_dict={

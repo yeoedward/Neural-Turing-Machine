@@ -218,6 +218,12 @@ class NTMCell(rnn_cell.RNNCell):
       w0 = tf.slice(state, [0, 0], [-1, self.mem_nrows])
       M0 = tf.slice(state, [0, self.mem_nrows], [-1, -1])
       M0 = tf.reshape(M0, [-1, self.mem_nrows, self.mem_ncols])
+      M_bias = tf.get_variable(
+        name="mem_bias",
+        shape=[self.mem_nrows, self.mem_ncols],
+        initializer=tf.random_normal_initializer(0, 0.1),
+      )
+      M0 = M0 + M_bias
 
       # Read
       read = tf.squeeze(tf.batch_matmul(tf.expand_dims(w0, 1), M0))
@@ -232,8 +238,7 @@ class NTMCell(rnn_cell.RNNCell):
       key_mag = tf.expand_dims(NTMCell.magnitude(head["key"], 1), 1)
       M_col_mag = NTMCell.magnitude(M0, 2)
       cosine_sim = key_matches / (key_mag * M_col_mag)
-      amp_sim = tf.exp(head["key_str"] * cosine_sim) 
-      wc = amp_sim / tf.reduce_sum(amp_sim, 1, keep_dims=True)
+      wc = tf.nn.softmax(head["key_str"] * cosine_sim)
       #wc = NTMCell.log_first(wc, "wc", 20)
 
       # Location focusing
@@ -259,6 +264,8 @@ class NTMCell(rnn_cell.RNNCell):
         tf.expand_dims(w1, 2),
         tf.expand_dims(head["add"], 1),
       )
+
+      M1 = M1 - M_bias
      
       sw1 = tf.reshape(w1, [-1, self.mem_nrows])
       sM1 = tf.reshape(M1, [-1, self.mem_nrows * self.mem_ncols])
