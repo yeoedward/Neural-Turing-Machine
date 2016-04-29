@@ -4,8 +4,8 @@ import numpy as np
 import random
 import ntm
 
-mem_nrow = 3
-mem_ncol = 2
+mem_nrow = 128
+mem_ncol = 20
 
 # Define loss and optimizer
 def var_seq_loss(preds, y, nsteps):
@@ -96,7 +96,7 @@ def train(
     n_input,
     max_steps,
     training_iters=1000000,
-    batch_size=128,
+    batch_size=16,
     display_step=10,
     ):
   sess = tf.Session()
@@ -113,9 +113,9 @@ def train(
   # though we could theoretically have infinite data
   # for debugging purposes (loss should almost always decrease).
   training_data = []
-  nbatches = 1
+  nbatches = 2048
   for i in xrange(nbatches):
-    seq_len = random.randint(18, 20)
+    seq_len = random.randint(1, 20)
     (xs, ys, nsteps) = gen_seq(
       nseqs=batch_size,
       max_steps=max_steps,

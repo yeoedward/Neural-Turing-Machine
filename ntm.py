@@ -44,7 +44,7 @@ class NTMCell(rnn_cell.RNNCell):
   def get_params(self):
   #TODO Expose constants as args in constructor.
     n_first_layer = self.n_inputs + self.mem_ncols
-    weight_var = 0.1
+    weight_var = 0.5
     weights = {
       "hidden": tf.get_variable(
         name="hidden_weight",
@@ -167,12 +167,14 @@ class NTMCell(rnn_cell.RNNCell):
     weights, biases = self.get_params()
 
     hidden = tf.matmul(first_layer, weights["hidden"]) + biases["hidden"]
-    hidden = tf.nn.relu(hidden)
+    hidden = tf.nn.tanh(hidden)
 
     output = tf.matmul(hidden, weights["output"]) + biases["output"]
+    output = tf.tanh(output)
     #output = NTMCell.log_first(output, "output", 8)
 
     key = tf.matmul(hidden, weights["key"]) + biases["key"]
+    key = tf.sigmoid(key)
     #key = NTMCell.log_first(key, "key", 4)
 
     key_str = tf.matmul(hidden, weights["key_str"]) + biases["key_str"]
@@ -192,6 +194,7 @@ class NTMCell(rnn_cell.RNNCell):
     #sharp = NTMCell.log_first(sharp, "sharp", 1)
 
     add = tf.matmul(hidden, weights["add"]) + biases["add"]
+    add = tf.sigmoid(add)
     #add = NTMCell.log_first(add, "add", 4)
 
     erase = tf.matmul(hidden, weights["erase"]) + biases["erase"]
@@ -212,6 +215,39 @@ class NTMCell(rnn_cell.RNNCell):
   def magnitude(tens, dim):
     return tf.sqrt(tf.reduce_sum(tf.square(tens), dim))
 
+  @staticmethod
+  def circular_convolution(v, k):
+    """Computes circular convolution.
+    Args:
+        v: a 1-D `Tensor` (vector)
+        k: a 1-D `Tensor` (kernel)
+    """
+    size = int(v.get_shape()[0])
+    kernel_size = int(k.get_shape()[0])
+    kernel_shift = int(math.floor(kernel_size/2.0))
+
+    def loop(idx):
+        if idx < 0: return size + idx
+        if idx >= size : return idx - size
+        else: return idx
+
+    kernels = []
+    for i in xrange(size):
+        indices = [loop(i+j) for j in xrange(kernel_shift, -kernel_shift-1, -1)]
+        v_ = tf.gather(v, indices)
+        kernels.append(tf.reduce_sum(v_ * k, 0))
+
+    # # code with double loop
+    # for i in xrange(size):
+    #     for j in xrange(kernel_size):
+    #         idx = i + kernel_shift - j + 1
+    #         if idx < 0: idx = idx + size
+    #         if idx >= size: idx = idx - size
+    #         w = tf.gather(v, int(idx)) * tf.gather(kernel, j)
+    #         output = tf.scatter_add(output, [i], tf.reshape(w, [1, -1]))
+
+    return tf.dynamic_stitch([i for i in xrange(size)], kernels)
+
   def __call__(self, inputs, state, scope=None):
     with tf.variable_scope(scope or type(self).__name__):
       # Number of weights == Rows of memory matrix
@@ -221,7 +257,7 @@ class NTMCell(rnn_cell.RNNCell):
       M_bias = tf.get_variable(
         name="mem_bias",
         shape=[self.mem_nrows, self.mem_ncols],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_normal_initializer(0, 0.5),
       )
       M0 = M0 + M_bias
 
@@ -232,21 +268,27 @@ class NTMCell(rnn_cell.RNNCell):
       output, head = self.controller(inputs, read)
 
       # Content focusing
+      #head["key"] = NTMCell.log_first(head["key"], "key", 20)
       key = tf.expand_dims(head["key"], 1)
       key_matches = tf.batch_matmul(key, tf.transpose(M0, [0, 2, 1]))
       key_matches = tf.squeeze(key_matches)
+      #key_matches = NTMCell.log_first(key_matches, "key_matches", 20)
       key_mag = tf.expand_dims(NTMCell.magnitude(head["key"], 1), 1)
       M_col_mag = NTMCell.magnitude(M0, 2)
       cosine_sim = key_matches / (key_mag * M_col_mag)
+      #cosine_sim = NTMCell.log_first(cosine_sim, "cosine_sim", 20)
       wc = tf.nn.softmax(head["key_str"] * cosine_sim)
       #wc = NTMCell.log_first(wc, "wc", 20)
 
       # Location focusing
       wg = head["interp"] * wc + (1 - head["interp"]) * w0
+      #wg = NTMCell.log_first(wg, "wg", 20)
+      #head["shift"] = NTMCell.log_first(head["shift"], "shift", 20)
+      #ws = NTMCell.circular_convolution(wg, head["shift"])
       ws = rotate.ntm_rotate(wg, head["shift"])
+      #ws = NTMCell.log_first(ws, "ws", 20)
       ws_pow = tf.pow(ws, head["sharp"])
       w1 = ws_pow / tf.reduce_sum(ws_pow, 1, keep_dims=True)
-      #w1 = NTMCell.log_first(w1, "w1", 20)
 
       # Write
       we = 1 - tf.batch_matmul(
