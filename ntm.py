@@ -100,7 +100,7 @@ class NTMCell(rnn_cell.RNNCell):
       "hidden": tf.get_variable(
         name="hidden_bias",
         shape=[self.n_hidden],
-        initializer=tf.random_normal_initializer(1, 0.1),
+        initializer=tf.random_normal_initializer(0, 0.1),
       ),
       "output": tf.get_variable(
         name="output_bias",

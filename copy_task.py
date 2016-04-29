@@ -40,10 +40,18 @@ def create_rnn(max_steps, n_input):
 
   # Loss functions
   cost = var_seq_loss(outputs, y, nsteps)
-  # TODO Implement gradient clipping as in the paper?
-  optimizer = tf.train.RMSPropOptimizer(
+  # Optimizer params as described in paper.
+  opt = tf.train.RMSPropOptimizer(
     learning_rate=1e-4,
-  ).minimize(cost)
+    momentum=0.9,
+  )
+  gvs = opt.compute_gradients(cost)
+  # Gradient clipping as described in paper.
+  clipped_gvs = [
+    (tf.clip_by_value(g, -10, 10), v)
+    for g, v in gvs
+  ]
+  optimizer = opt.apply_gradients(clipped_gvs)
 
   return {
     'pred': outputs,
