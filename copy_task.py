@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.models.rnn import rnn
+from tensorflow.models.rnn import rnn, rnn_cell
 import numpy as np
 import random
 import ntm
@@ -34,6 +34,9 @@ def create_rnn(max_steps, n_input):
       mem_nrows=mem_nrow,
       mem_ncols=mem_ncol,
   )
+  #lstm_cell = rnn_cell.BasicLSTMCell(
+  #  num_units= 
+  #)
   outputs, _ = rnn.dynamic_rnn(
       ntm_cell,
       x,
@@ -70,13 +73,13 @@ def gen_seq(nseqs, max_steps, seq_len, nbits):
   nsteps = 2*seq_len + 1
   assert nsteps <= max_steps
   zeros = [0] * nbits
-  ones = [1] * nbits
+  GO = [0] * (nbits - 1) + [1]
   xs = []
   ys = []
   for _ in xrange(nseqs):
     # Note that we reserve the all-zero and all-one vectors as the 
     # padding and delimeter symbols
-    seq = [random.randint(1, 2**nbits - 1) for _ in xrange(seq_len)]
+    seq = [random.randint(2, 2**nbits - 1) for _ in xrange(seq_len)]
     # Convert each int to binary
     seq = [
             [int(digit) for digit in '{0:08b}'.format(num)]
@@ -86,7 +89,7 @@ def gen_seq(nseqs, max_steps, seq_len, nbits):
     pad = [zeros] * npad
     # Dummy inputs after the delimeter / outputs before the delimiter
     dummies = [zeros] * seq_len
-    x = seq + [ones] + dummies + pad
+    x = seq + [GO] + dummies + pad
     xs.append(x)
     ys.append(seq)
   return np.array(xs), np.array(ys), np.tile(nsteps, nseqs)
@@ -115,7 +118,7 @@ def train(
   training_data = []
   nbatches = 2048
   for i in xrange(nbatches):
-    seq_len = random.randint(1, 20)
+    seq_len = random.randint(18, 20)
     (xs, ys, nsteps) = gen_seq(
       nseqs=batch_size,
       max_steps=max_steps,
