@@ -151,33 +151,52 @@ class NTMCell(rnn_cell.RNNCell):
 
     return weights, biases
 
+  @staticmethod
+  def log_first(tens, name, size):
+    return tf.Print(
+      tens,
+      [tf.slice(tens, [0, 0], [1, -1])],
+      name,
+      summarize=size,
+    )
+
   def controller(self, inputs, read):
     first_layer = tf.concat(1, [inputs, read])
+    #first_layer = NTMCell.log_first(first_layer, "first_layer", 16)
+
     weights, biases = self.get_params()
 
     hidden = tf.matmul(first_layer, weights["hidden"]) + biases["hidden"]
     hidden = tf.nn.relu(hidden)
 
     output = tf.matmul(hidden, weights["output"]) + biases["output"]
+    #output = NTMCell.log_first(output, "output", 8)
 
     key = tf.matmul(hidden, weights["key"]) + biases["key"]
+    #key = NTMCell.log_first(key, "key", 4)
 
     key_str = tf.matmul(hidden, weights["key_str"]) + biases["key_str"]
     key_str = tf.nn.softplus(key_str)
+    #key_str = NTMCell.log_first(key_str, "key_str", 1)
 
     interp = tf.matmul(hidden, weights["interp"]) + biases["interp"]
     interp = tf.sigmoid(interp)
+    #interp = NTMCell.log_first(interp, "interp", 1)
 
     shift = tf.matmul(hidden, weights["shift"]) + biases["shift"]
-    shift = tf.exp(shift) / tf.reduce_sum(tf.exp(shift))
+    shift = tf.nn.softmax(shift)
+    #shift = NTMCell.log_first(shift, "shift", 3)
 
     sharp = tf.matmul(hidden, weights["sharp"]) + biases["sharp"]
-    sharp = tf.nn.relu(sharp) + 1
+    sharp = tf.nn.softplus(sharp) + 1
+    #sharp = NTMCell.log_first(sharp, "sharp", 1)
 
     add = tf.matmul(hidden, weights["add"]) + biases["add"]
+    #add = NTMCell.log_first(add, "add", 4)
 
     erase = tf.matmul(hidden, weights["erase"]) + biases["erase"]
     erase = tf.sigmoid(erase)
+    #erase = NTMCell.log_first(erase, "erase", 4)
 
     return output, {
       "key": key,
@@ -215,18 +234,26 @@ class NTMCell(rnn_cell.RNNCell):
       cosine_sim = key_matches / (key_mag * M_col_mag)
       amp_sim = tf.exp(head["key_str"] * cosine_sim) 
       wc = amp_sim / tf.reduce_sum(amp_sim, 1, keep_dims=True)
+      #wc = NTMCell.log_first(wc, "wc", 20)
 
       # Location focusing
       wg = head["interp"] * wc + (1 - head["interp"]) * w0
       ws = rotate.ntm_rotate(wg, head["shift"])
       ws_pow = tf.pow(ws, head["sharp"])
-      w1 = ws_pow / tf.reduce_sum(ws_pow)
+      w1 = ws_pow / tf.reduce_sum(ws_pow, 1, keep_dims=True)
+      #w1 = NTMCell.log_first(w1, "w1", 20)
 
       # Write
       we = 1 - tf.batch_matmul(
         tf.expand_dims(w1, 2),
         tf.expand_dims(head["erase"], 1)
       )  
+      #we = tf.Print(
+      #  we,
+      #  [we],
+      #  "we",
+      #  summarize=20,
+      #)
       Me = M0 * we
       M1 = Me + tf.batch_matmul(
         tf.expand_dims(w1, 2),
