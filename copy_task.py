@@ -188,10 +188,10 @@ def train(
   print "Optimization Finished!"
 
 # Training Parameters
-max_steps = 41
-n_input = 8
-mem_nrow = 128
-mem_ncol = 20
+max_steps = 11
+n_input = 3
+mem_nrow = 10
+mem_ncol = 5
 model = create_rnn(
   max_steps=max_steps,
   n_input=n_input,

@@ -180,15 +180,6 @@ class NTMCell(rnn_cell.RNNCell):
     return weights, biases
 
   @staticmethod
-  def log_first(tens, name, size):
-    return tf.Print(
-      tens,
-      [tf.slice(tens, [0, 0], [1, -1])],
-      name,
-      summarize=size+1,
-    )
-
-  @staticmethod
   def head_outputs(weights, biases, hidden, i, is_write):
     key_name = NTMCell.var_name("key", i, is_write)
     key = tf.matmul(hidden, weights[key_name]) + biases[key_name]
@@ -259,43 +250,19 @@ class NTMCell(rnn_cell.RNNCell):
     # Content focusing
     # Compute cosine similarity
     key = tf.expand_dims(head["key"], 1)
-    #key = tf.Print(key, [tf.reduce_min(key)], "key min")
-    #key = tf.Print(key, [tf.reduce_mean(key)], "key mean")
-    #key = tf.Print(key, [tf.reduce_max(key)], "key max")
     key_matches = tf.batch_matmul(key, tf.transpose(M0, [0, 2, 1]))
     key_matches = tf.squeeze(key_matches)
     key_mag = tf.expand_dims(NTMCell.magnitude(head["key"], 1), 1)
     M_col_mag = NTMCell.magnitude(M0, 2)
     cosine_sim = key_matches / (key_mag * M_col_mag)
     # Compute content weights
-    #head["key_str"] = tf.Print(head["key_str"], [tf.reduce_min(head["key_str"])], "key_str min")
-    #head["key_str"] = tf.Print(head["key_str"], [tf.reduce_mean(head["key_str"])], "key_str mean")
-    #head["key_str"] = tf.Print(head["key_str"], [tf.reduce_max(head["key_str"])], "key_str max")
     wc = tf.nn.softmax(head["key_str"] * cosine_sim)
-    #wc = tf.Print(wc, [tf.reduce_min(wc)], "wc min", first_n=10)
-    #wc = tf.Print(wc, [tf.reduce_mean(wc)], "wc mean", first_n=10)
-    #wc = tf.Print(wc, [tf.reduce_max(wc)], "wc max", first_n=10)
-    #w0 = tf.Print(w0, [tf.reduce_min(w0)], "w0 min", first_n=10)
-    #w0 = tf.Print(w0, [tf.reduce_mean(w0)], "w0 mean", first_n=10)
-    #w0 = tf.Print(w0, [tf.reduce_max(w0)], "w0 max", first_n=10)
-    #head["interp"] = tf.Print(head["interp"], [tf.reduce_min(head["interp"])], "winterp min", first_n=10)
-    #head["interp"] = tf.Print(head["interp"], [tf.reduce_mean(head["interp"])], "interp mean", first_n=10)
-    #head["interp"] = tf.Print(head["interp"], [tf.reduce_max(head["interp"])], "interp max", first_n=10)
 
     # Location focusing
     wg = head["interp"] * wc + (1 - head["interp"]) * w0
-    #wg = tf.Print(wg, [tf.reduce_min(wg)], "wg min")
-    #wg = tf.Print(wg, [tf.reduce_mean(wg)], "wg mean")
-    #wg = tf.Print(wg, [tf.reduce_max(wg)], "wg max")
     ws = rotate.ntm_rotate(wg, head["shift"])
-    #head["sharp"] = tf.Print(head["sharp"], [tf.reduce_min(head["sharp"])], "sharp min")
-    #head["sharp"] = tf.Print(head["sharp"], [tf.reduce_mean(head["sharp"])], "sharp mean")
-    #head["sharp"] = tf.Print(head["sharp"], [tf.reduce_max(head["sharp"])], "sharp max")
     ws_pow = tf.pow(ws, head["sharp"])
     w1 = ws_pow / tf.reduce_sum(ws_pow, 1, keep_dims=True)
-    #w1 = tf.Print(w1, [tf.reduce_min(w1)], "w1 min")
-    #w1 = tf.Print(w1, [tf.reduce_mean(w1)], "w1 mean")
-    #w1 = tf.Print(w1, [tf.reduce_max(w1)], "w1 max")
 
     return w1
 
@@ -353,9 +320,6 @@ class NTMCell(rnn_cell.RNNCell):
       write_w0s = []
       for _ in xrange(self.n_heads):
         w0 = tf.slice(state, [0, state_idx], [-1, self.mem_nrows])
-        #write_w_bias[i] = tf.Print(write_w_bias[i], [tf.reduce_min(write_w_bias[i])], "write bias min")
-        #write_w_bias[i] = tf.Print(write_w_bias[i], [tf.reduce_mean(write_w_bias[i])], "write bias mean")
-        #write_w_bias[i] = tf.Print(write_w_bias[i], [tf.reduce_max(write_w_bias[i])], "write bias max")
         w0 += write_w_bias[i]
         write_w0s.append(w0)
         state_idx += self.mem_nrows
@@ -366,9 +330,6 @@ class NTMCell(rnn_cell.RNNCell):
       reads = []
       for i in xrange(self.n_heads):
         w0 = read_w0s[i]
-        #w0 = tf.Print(w0, [tf.reduce_min(w0)], "w0 min", first_n=10)
-        #w0 = tf.Print(w0, [tf.reduce_mean(w0)], "w0 mean", first_n=10)
-        #w0 = tf.Print(w0, [tf.reduce_max(w0)], "w0 max", first_n=10)
         r = tf.batch_matmul(tf.expand_dims(w0, 1), M0)
         r = tf.squeeze(r, [1])
         reads.append(r)
@@ -382,9 +343,6 @@ class NTMCell(rnn_cell.RNNCell):
       for i in xrange(self.n_heads):
         head = write_heads[i]
         w0 = write_w0s[i]
-        #w0 = tf.Print(w0, [tf.reduce_min(w0)], "w0 min", first_n=10)
-        #w0 = tf.Print(w0, [tf.reduce_mean(w0)], "w0 mean", first_n=10)
-        #w0 = tf.Print(w0, [tf.reduce_max(w0)], "w0 max", first_n=10)
         # Important that we read from M0, as opposed to M1.
         # We do not want our addressing mechanism to be
         # affected by the write order.
