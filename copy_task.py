@@ -44,7 +44,7 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
   # Batch size, max_steps, n_input
   x = tf.placeholder("float", [None, None, n_input])
   y = tf.placeholder("float", [None, None, n_input])
-  istate = tf.placeholder("float", [None, mem_nrow*mem_ncol + mem_nrow])
+  istate = tf.placeholder("float", [None, mem_nrow*mem_ncol + 2*mem_nrow])
   # TODO Remove after testing.
   #istate = tf.placeholder("float", [None, 600])
   nsteps = tf.placeholder("int32")
@@ -53,6 +53,7 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
       n_hidden=100,
       mem_nrows=mem_nrow,
       mem_ncols=mem_ncol,
+      n_heads=1,
   )
   X = x
   # TODO Remove after testing.
@@ -167,7 +168,7 @@ def train(
     batch_idx = (batch_idx + 1) % nbatches
     # TODO Is it appropriate for initial state to be all ones?
     # TODO Refactor magic number
-    istate = np.ones((batch_size, mem_nrow*mem_ncol + mem_nrow))
+    istate = np.ones((batch_size, mem_nrow*mem_ncol + 2*mem_nrow))
     # TODO Remove after testing
     #istate = np.ones((batch_size, 600))
     sess.run(

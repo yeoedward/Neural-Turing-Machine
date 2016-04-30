@@ -22,6 +22,7 @@ ntm_cell = ntm.NTMCell(
   n_hidden=4,
   mem_nrows=10,
   mem_ncols=5,
+  n_heads=1,
 )
 
 outputs, _ = rnn.rnn(ntm_cell, X, dtype=tf.float32)
