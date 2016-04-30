@@ -123,7 +123,7 @@ class NTMCell(rnn_cell.RNNCell):
 
   def get_params(self):
     n_first_layer = self.n_inputs + self.n_heads * self.mem_ncols
-    weight_var = 0.3
+    weight_var = 0.1
     weights = {
       "hidden": tf.get_variable(
         name="hidden_weight",
@@ -140,12 +140,12 @@ class NTMCell(rnn_cell.RNNCell):
       "hidden": tf.get_variable(
         name="hidden_bias",
         shape=[self.n_hidden],
-        initializer=tf.random_normal_initializer(0.5, weight_var),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
       "output": tf.get_variable(
         name="output_bias",
         shape=[self.n_inputs],
-        initializer=tf.random_normal_initializer(0.5, weight_var),
+        initializer=tf.random_normal_initializer(0, weight_var),
       ),
     }
 
@@ -287,7 +287,7 @@ class NTMCell(rnn_cell.RNNCell):
       M_bias = tf.get_variable(
         name="mem_bias",
         shape=[self.mem_nrows, self.mem_ncols],
-        initializer=tf.random_normal_initializer(0, 0.1),
+        initializer=tf.random_uniform_initializer(0, 1),
       )
       M0 = M0 + M_bias
 

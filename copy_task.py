@@ -13,7 +13,7 @@ def var_seq_loss(preds, y, nsteps):
     tf.pack([0, start, 0]),
     tf.pack([-1, seq_len, -1]),
   )
-  return tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(output_seq, y))
+  return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(output_seq, y))
 
 def bits_err_per_seq(out, expected, nsteps):
   pred = tf.sigmoid(out)
@@ -168,7 +168,7 @@ def train(
     batch_idx = (batch_idx + 1) % nbatches
     # TODO Is it appropriate for initial state to be all ones?
     # TODO Refactor magic number
-    istate = np.ones((batch_size, mem_nrow*mem_ncol + 2*mem_nrow))
+    istate = np.zeros((batch_size, mem_nrow*mem_ncol + 2*mem_nrow))
     # TODO Remove after testing
     #istate = np.ones((batch_size, 600))
     sess.run(
