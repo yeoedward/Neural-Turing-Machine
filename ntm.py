@@ -35,65 +35,65 @@ class NTMCell(rnn_cell.RNNCell):
     prefix = "write_" if is_write else "read_"
     return prefix + v + str(i)
 
-  def add_head_params(self, weights, biases, i, weight_var, is_write):
+  def add_head_params(self, weights, biases, i, init_min, init_max, is_write):
       key_name = NTMCell.var_name("key", i, is_write)
       weights[key_name] = tf.get_variable(
         name=key_name + "_weight",
         shape=[self.n_hidden, self.mem_ncols],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_uniform_initializer(init_min, init_max),
       )
       biases[key_name] = tf.get_variable(
         name=key_name + "_bias",
         shape=[self.mem_ncols],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_uniform_initializer(init_min, init_max),
       )
 
       key_str_name = NTMCell.var_name("key_str", i, is_write)
       weights[key_str_name] = tf.get_variable(
         name=key_str_name + "_weight",
         shape=[self.n_hidden, 1],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_uniform_initializer(init_min, init_max),
       )
       biases[key_str_name] = tf.get_variable(
         name=key_str_name + "_bias",
         shape=[1],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_uniform_initializer(init_min, init_max),
       )
 
       interp_name = NTMCell.var_name("interp", i, is_write)
       weights[interp_name] = tf.get_variable(
         name=interp_name + "_weight",
         shape=[self.n_hidden, 1],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_uniform_initializer(init_min, init_max),
       )
       biases[interp_name] = tf.get_variable(
         name=interp_name + "_bias",
         shape=[1],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_uniform_initializer(init_min, init_max),
       )
 
       shift_name = NTMCell.var_name("shift", i, is_write)
       weights[shift_name] = tf.get_variable(
         name=shift_name + "_weight",
         shape=[self.n_hidden, 3],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_uniform_initializer(init_min, init_max),
       )
       biases[shift_name] = tf.get_variable(
         name=shift_name + "_bias",
         shape=[3],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_uniform_initializer(init_min, init_max),
       )
 
       sharp_name = NTMCell.var_name("sharp", i, is_write)
       weights[sharp_name] =  tf.get_variable(
         name=sharp_name + "_weight",
         shape=[self.n_hidden, 1],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_uniform_initializer(init_min, init_max),
       )
       biases[sharp_name] = tf.get_variable(
         name=sharp_name + "_bias",
         shape=[1],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_uniform_initializer(init_min, init_max),
       )
 
       if is_write:
@@ -101,57 +101,72 @@ class NTMCell(rnn_cell.RNNCell):
         weights[add_name] = tf.get_variable(
           name=add_name + "_weight",
           shape=[self.n_hidden, self.mem_ncols],
-          initializer=tf.random_normal_initializer(0, weight_var),
+          initializer=tf.random_uniform_initializer(init_min, init_max),
         )
         biases[add_name] = tf.get_variable(
           name=add_name + "_bias",
           shape=[self.mem_ncols],
-          initializer=tf.random_normal_initializer(0, weight_var),
+          initializer=tf.random_uniform_initializer(init_min, init_max),
         )
 
         erase_name = NTMCell.var_name("erase", i, is_write)
         weights[erase_name] = tf.get_variable(
           name=erase_name + "_weight",
           shape=[self.n_hidden, self.mem_ncols],
-          initializer=tf.random_normal_initializer(0, weight_var),
+          initializer=tf.random_uniform_initializer(init_min, init_max),
         )
         biases[erase_name] = tf.get_variable(
           name=erase_name + "_bias",
           shape=[self.mem_ncols],
-          initializer=tf.random_normal_initializer(0, weight_var),
+          initializer=tf.random_uniform_initializer(init_min, init_max),
         )
 
   def get_params(self):
     n_first_layer = self.n_inputs + self.n_heads * self.mem_ncols
-    weight_var = 0.1
+    init_min = -0.1
+    init_max = 0.1
     weights = {
       "hidden": tf.get_variable(
         name="hidden_weight",
         shape=[n_first_layer, self.n_hidden],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_uniform_initializer(init_min, init_max),
       ),
       "output": tf.get_variable(
         name="output_weight",
         shape=[self.n_hidden, self.n_inputs],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_uniform_initializer(init_min, init_max),
       ),
     }
     biases = {
       "hidden": tf.get_variable(
         name="hidden_bias",
         shape=[self.n_hidden],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_uniform_initializer(init_min, init_max),
       ),
       "output": tf.get_variable(
         name="output_bias",
         shape=[self.n_inputs],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_uniform_initializer(init_min, init_max),
       ),
     }
 
     for i in xrange(self.n_heads):
-      self.add_head_params(weights, biases, i, weight_var, is_write=True)
-      self.add_head_params(weights, biases, i, weight_var, is_write=False)
+      self.add_head_params(
+        weights=weights,
+        biases=biases,
+        i=i,
+        init_min=init_min,
+        init_max=init_max,
+        is_write=True,
+      )
+      self.add_head_params(
+        weights=weights,
+        biases=biases,
+        i=i,
+        init_min=init_min,
+        init_max=init_max,
+        is_write=False,
+      )
 
     return weights, biases
 
@@ -168,11 +183,11 @@ class NTMCell(rnn_cell.RNNCell):
   def head_outputs(weights, biases, hidden, i, is_write):
     key_name = NTMCell.var_name("key", i, is_write)
     key = tf.matmul(hidden, weights[key_name]) + biases[key_name]
-    key = tf.sigmoid(key)
+    key = tf.nn.tanh(key)
 
     key_str_name = NTMCell.var_name("key_str", i, is_write)
     key_str = tf.matmul(hidden, weights[key_str_name]) + biases[key_str_name]
-    key_str = tf.nn.softplus(key_str)
+    key_str = tf.nn.relu(key_str)
 
     interp_name = NTMCell.var_name("interp", i, is_write)
     interp = tf.matmul(hidden, weights[interp_name]) + biases[interp_name]
@@ -184,7 +199,7 @@ class NTMCell(rnn_cell.RNNCell):
 
     sharp_name = NTMCell.var_name("sharp", i, is_write)
     sharp = tf.matmul(hidden, weights[sharp_name]) + biases[sharp_name]
-    sharp = tf.nn.softplus(sharp) + 1
+    sharp = tf.nn.relu(sharp) + 1
 
     head = {
       "key": key,
@@ -236,19 +251,37 @@ class NTMCell(rnn_cell.RNNCell):
     # Content focusing
     # Compute cosine similarity
     key = tf.expand_dims(head["key"], 1)
+    #key = tf.Print(key, [tf.reduce_min(key)], "key min")
+    #key = tf.Print(key, [tf.reduce_mean(key)], "key mean")
+    #key = tf.Print(key, [tf.reduce_max(key)], "key max")
     key_matches = tf.batch_matmul(key, tf.transpose(M0, [0, 2, 1]))
     key_matches = tf.squeeze(key_matches)
     key_mag = tf.expand_dims(NTMCell.magnitude(head["key"], 1), 1)
     M_col_mag = NTMCell.magnitude(M0, 2)
     cosine_sim = key_matches / (key_mag * M_col_mag)
     # Compute content weights
+    #head["key_str"] = tf.Print(head["key_str"], [tf.reduce_min(head["key_str"])], "key_str min")
+    #head["key_str"] = tf.Print(head["key_str"], [tf.reduce_mean(head["key_str"])], "key_str mean")
+    #head["key_str"] = tf.Print(head["key_str"], [tf.reduce_max(head["key_str"])], "key_str max")
     wc = tf.nn.softmax(head["key_str"] * cosine_sim)
+    #wc = tf.Print(wc, [tf.reduce_min(wc)], "wc min")
+    #wc = tf.Print(wc, [tf.reduce_mean(wc)], "wc mean")
+    #wc = tf.Print(wc, [tf.reduce_max(wc)], "wc max")
 
     # Location focusing
     wg = head["interp"] * wc + (1 - head["interp"]) * w0
+    #wg = tf.Print(wg, [tf.reduce_min(wg)], "wg min")
+    #wg = tf.Print(wg, [tf.reduce_mean(wg)], "wg mean")
+    #wg = tf.Print(wg, [tf.reduce_max(wg)], "wg max")
     ws = rotate.ntm_rotate(wg, head["shift"])
+    #head["sharp"] = tf.Print(head["sharp"], [tf.reduce_min(head["sharp"])], "sharp min")
+    #head["sharp"] = tf.Print(head["sharp"], [tf.reduce_mean(head["sharp"])], "sharp mean")
+    #head["sharp"] = tf.Print(head["sharp"], [tf.reduce_max(head["sharp"])], "sharp max")
     ws_pow = tf.pow(ws, head["sharp"])
     w1 = ws_pow / tf.reduce_sum(ws_pow, 1, keep_dims=True)
+    #w1 = tf.Print(w1, [tf.reduce_min(w1)], "w1 min")
+    #w1 = tf.Print(w1, [tf.reduce_mean(w1)], "w1 mean")
+    #w1 = tf.Print(w1, [tf.reduce_max(w1)], "w1 max")
 
     return w1
 
@@ -262,26 +295,6 @@ class NTMCell(rnn_cell.RNNCell):
         [-1, self.mem_nrows * self.mem_ncols],
       )
       M0 = tf.reshape(M0, [-1, self.mem_nrows, self.mem_ncols])
-
-      state_idx = self.mem_nrows * self.mem_ncols
-
-      # Deserialize read weights from previous time step.
-      read_w0s = []
-      for _ in xrange(self.n_heads):
-        # Number of weights == Rows of memory matrix
-        w0 = tf.slice(state, [0, state_idx], [-1, self.mem_nrows])
-        read_w0s.append(w0)
-        state_idx += self.mem_nrows
-
-      # Do the same for write heads.
-      write_w0s = []
-      for _ in xrange(self.n_heads):
-        w0 = tf.slice(state, [0, state_idx], [-1, self.mem_nrows])
-        write_w0s.append(w0)
-        state_idx += self.mem_nrows
-
-      assert state_idx == state.get_shape()[1]
-
       # Memory cells have a trainable bias.
       # Add bias after deserializing, and subtract before serializing.
       M_bias = tf.get_variable(
@@ -289,7 +302,44 @@ class NTMCell(rnn_cell.RNNCell):
         shape=[self.mem_nrows, self.mem_ncols],
         initializer=tf.random_uniform_initializer(0, 1),
       )
-      M0 = M0 + M_bias
+      M0 += M_bias
+
+      state_idx = self.mem_nrows * self.mem_ncols
+
+
+      read_w_bias = []
+      for i in xrange(self.n_heads):
+        read_w_bias.append(tf.nn.softmax(tf.get_variable(
+          name="read_bias" + str(i),
+          shape=[1, self.mem_nrows],
+          initializer=tf.random_uniform_initializer(0, 1),
+        )))
+      write_w_bias = []
+      for i in xrange(self.n_heads):
+        write_w_bias.append(tf.nn.softmax(tf.get_variable(
+          name="write_bias" + str(i),
+          shape=[1, self.mem_nrows],
+          initializer=tf.random_uniform_initializer(0, 1),
+        )))
+
+      # Deserialize read weights from previous time step.
+      read_w0s = []
+      for i in xrange(self.n_heads):
+        # Number of weights == Rows of memory matrix
+        w0 = tf.slice(state, [0, state_idx], [-1, self.mem_nrows])
+        w0 += read_w_bias[i]
+        read_w0s.append(w0)
+        state_idx += self.mem_nrows
+
+      # Do the same for write heads.
+      write_w0s = []
+      for _ in xrange(self.n_heads):
+        w0 = tf.slice(state, [0, state_idx], [-1, self.mem_nrows])
+        w0 += write_w_bias[i]
+        write_w0s.append(w0)
+        state_idx += self.mem_nrows
+
+      assert state_idx == state.get_shape()[1]
 
       # Read
       reads = []
@@ -335,8 +385,20 @@ class NTMCell(rnn_cell.RNNCell):
          
       # Serialize state for next timestep
       M1 = M1 - M_bias
-      s_read_w1s = [tf.reshape(w1, [-1, self.mem_nrows]) for w1 in read_w1s]
-      s_write_w1s = [tf.reshape(w1, [-1, self.mem_nrows]) for w1 in write_w1s]
+      s_read_w1s = []
+      for i in xrange(len(read_w1s)):
+        w1 = read_w1s[i]
+        w1 -= read_w_bias[i]
+        s_read_w1s.append(
+          tf.reshape(w1, [-1, self.mem_nrows]),
+        )
+      s_write_w1s = []
+      for i in xrange(len(write_w1s)):
+        w1 = write_w1s[i]
+        w1 -= write_w_bias[i]
+        s_write_w1s.append(
+          tf.reshape(w1, [-1, self.mem_nrows]),
+        )
       sM1 = tf.reshape(M1, [-1, self.mem_nrows * self.mem_ncols])
       new_state = tf.concat(1, [sM1] + s_read_w1s + s_write_w1s)
 

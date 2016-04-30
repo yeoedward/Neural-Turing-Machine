@@ -130,22 +130,15 @@ def gen_seq(nseqs, max_steps, seq_len, nbits):
     ys.append(seq)
   return np.array(xs), np.array(ys), np.tile(nsteps, nseqs)
 
-def softmax(x):
-  return np.exp(x) / np.sum(np.exp(x), axis=1, keepdims=True)
-
-def gen_weight(batch_size, length):
-  return softmax(np.random.rand(batch_size, length))
-
 def train(
     model,
     n_input,
     max_steps,
-    training_iters=10000,
-    batch_size=128,
+    training_iters=1e6,
+    batch_size=32,
     display_step=10,
     ):
   sess = tf.Session()
-
   # Initializing the variables
   init = tf.initialize_all_variables()
   sess.run(init)
@@ -159,10 +152,7 @@ def train(
       seq_len=random.randint(1, 20),
       nbits=n_input,
     )
-    mem = np.zeros((batch_size, mem_nrow*mem_ncol))
-    w1 = gen_weight(batch_size, mem_nrow)
-    w2 = gen_weight(batch_size, mem_nrow)
-    istate = np.concatenate([mem, w1, w2], axis=1)
+    istate = np.zeros((batch_size, mem_nrow*mem_ncol + 2*mem_nrow))
     # TODO Remove after testing
     #istate = np.ones((batch_size, 600))
     sess.run(
@@ -184,7 +174,6 @@ def train(
             model['steps']: nsteps,
           },
         )
-        print err
         print "Iter " + str(step*batch_size) + (
           ", Minibatch Loss= " + "{:.6f}".format(loss) +
           ", Average bit errors= " + "{:.6f}".format(err)
