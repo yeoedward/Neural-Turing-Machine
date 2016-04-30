@@ -63,10 +63,11 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
   )
   gvs = opt.compute_gradients(cost)
   # Gradient clipping as described in paper.
-  clipped_gvs = [
-    (tf.clip_by_value(g, -10, 10), v)
-    for g, v in gvs
-  ]
+  clipped_gvs = []
+  for g, v in gvs:
+    # TODO Remove after testing
+    #g = tf.Print(g, [g], v.name)
+    clipped_gvs.append((tf.clip_by_value(g, -10, 10), v))
   optimizer = opt.apply_gradients(clipped_gvs)
 
   return {
