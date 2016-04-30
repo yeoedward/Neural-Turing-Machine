@@ -210,7 +210,6 @@ class NTMCell(rnn_cell.RNNCell):
 
   def controller(self, inputs, reads):
     weights, biases = self.get_params()
-
     first_layer = tf.concat(1, [inputs] + reads)
     hidden = tf.matmul(first_layer, weights["hidden"]) + biases["hidden"]
     hidden = tf.nn.relu(hidden)
@@ -296,7 +295,8 @@ class NTMCell(rnn_cell.RNNCell):
       reads = []
       for i in xrange(self.n_heads):
         w0 = read_w0s[i]
-        r = tf.squeeze(tf.batch_matmul(tf.expand_dims(w0, 1), M0))
+        r = tf.batch_matmul(tf.expand_dims(w0, 1), M0)
+        r = tf.squeeze(r, [1])
         reads.append(r)
 
       # Run inputs and read through controller.

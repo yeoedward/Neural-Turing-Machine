@@ -135,7 +135,7 @@ def train(
     n_input,
     max_steps,
     training_iters=1000000,
-    batch_size=16,
+    batch_size=1,
     display_step=10,
     ):
   sess = tf.Session()
@@ -150,9 +150,9 @@ def train(
   # though we could theoretically have infinite data
   # for debugging purposes (loss should almost always decrease).
   training_data = []
-  nbatches = 10
+  nbatches = 100000
   for i in xrange(nbatches):
-    seq_len = random.randint(18, 20)
+    seq_len = random.randint(1, 20)
     (xs, ys, nsteps) = gen_seq(
       nseqs=batch_size,
       max_steps=max_steps,
