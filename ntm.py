@@ -227,10 +227,11 @@ class NTMCell(rnn_cell.RNNCell):
         tf.expand_dims(head["erase"], 1)
       )  
       Me = M0 * we
-      M1 = Me + tf.batch_matmul(
+      add = tf.batch_matmul(
         tf.expand_dims(w1, 2),
         tf.expand_dims(head["add"], 1),
       )
+      M1 = Me + add
 
       # Serialize state for next timestep
       M1 = M1 - M_bias

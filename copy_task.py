@@ -15,8 +15,30 @@ def var_seq_loss(preds, y, nsteps):
   )
   return tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(output_seq, y))
 
-def predict(preds):
-  return tf.sigmoid(preds)
+def bits_err_per_seq(out, expected, nsteps):
+  pred = tf.sigmoid(out)
+  seq_len = (nsteps[0] - 1) / 2
+  start = seq_len + 1
+  rel_pred = tf.slice(
+    pred,
+    tf.pack([0, start, 0]),
+    tf.pack([-1, seq_len, -1]),
+  )
+  rel_pred = tf.Print(
+    rel_pred,
+    [tf.slice(rel_pred, [0, 0, 0], [1, -1, 1])],
+    "rel_pred",
+    summarize=20,
+  )
+  expected = tf.Print(
+    expected,
+    [tf.slice(expected, [0, 0, 0], [1, -1, 1])],
+    "expected",
+    summarize=20,
+  )
+  diff = rel_pred - expected
+  return tf.reduce_mean(tf.reduce_sum(tf.abs(diff), [1, 2]))
+ 
 
 def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
   # Batch size, max_steps, n_input
@@ -69,6 +91,7 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
     #g = tf.Print(g, [g], v.name)
     clipped_gvs.append((tf.clip_by_value(g, -10, 10), v))
   optimizer = opt.apply_gradients(clipped_gvs)
+  err = bits_err_per_seq(outputs, y, nsteps)
 
   return {
     'pred': outputs,
@@ -78,6 +101,7 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
     'y': y,
     'istate': istate,
     'steps': nsteps,
+    'err': err,
   }
 
 def gen_seq(nseqs, max_steps, seq_len, nbits):
@@ -156,8 +180,8 @@ def train(
       },
     )
     if step % display_step == 0:
-        loss = sess.run(
-          model['cost'],
+        err, loss = sess.run(
+          [model['err'], model['cost']],
           feed_dict={
             model['x']: xs,
             model['y']: ys,
@@ -165,8 +189,11 @@ def train(
             model['steps']: nsteps,
           },
         )
+        print err
         print "Iter " + str(step*batch_size) + (
-          ", Minibatch Loss= " + "{:.6f}".format(loss))
+          ", Minibatch Loss= " + "{:.6f}".format(loss) +
+          ", Average bit errors= " + "{:.6f}".format(err)
+        )
 
     step += 1
   print "Optimization Finished!"
