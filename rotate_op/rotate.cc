@@ -42,8 +42,10 @@ class NTMRotateOp : public OpKernel {
       for (int j = 0; j < nrows; j++) {
         float total = 0;
         for (int k = 0; k < nrows; k++) {
-          int shift_idx = (((j - k) % nshift) + nshift) % nshift;
-          total += weights(i*nrows + k) * shifts(i*nshift + shift_idx);
+          int shift_idx = (((j - k + 1) % nrows) + nrows) % nrows;
+          if (shift_idx < nshift) {
+            total += weights(i*nrows + k) * shifts(i*nshift + shift_idx);
+          }
         }
         output(i*nrows + j) = total;
       }

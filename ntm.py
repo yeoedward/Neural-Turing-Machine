@@ -4,9 +4,9 @@ from tensorflow.python.framework import ops
 import tensorflow.python.user_ops as rotate
 # This is unnecessary after rebuilding tensorflow with the
 # user op in the appropriate directory.
-#rotate = tf.load_op_library(
-#  "tensorflow/bazel-bin/tensorflow/core/user_ops/rotate.so",
-#)
+rotate = tf.load_op_library(
+  "tensorflow/bazel-bin/tensorflow/core/user_ops/rotate.so",
+)
 @ops.RegisterGradient("NTMRotate")
 def _ntm_rotate_grad(op, grad):
   weights = op.inputs[0]
@@ -29,22 +29,9 @@ class NTMCell(rnn_cell.RNNCell):
   def output_size(self):
     return self.n_inputs
 
-  @staticmethod
-  def variable_summaries(var, name):
-    with tf.name_scope("summaries"):
-      mean = tf.reduce_mean(var)
-      tf.scalar_summary('mean/' + name, mean)
-      with tf.name_scope('stddev'):
-        stddev = tf.sqrt(tf.reduce_sum(tf.square(var - mean)))
-      tf.scalar_summary('sttdev/' + name, stddev)
-      tf.scalar_summary('max/' + name, tf.reduce_max(var))
-      tf.scalar_summary('min/' + name, tf.reduce_min(var))
-      tf.histogram_summary(name, var)
-
   def get_params(self):
-  #TODO Expose constants as args in constructor.
     n_first_layer = self.n_inputs + self.mem_ncols
-    weight_var = 0.5
+    weight_var = 0.3
     weights = {
       "hidden": tf.get_variable(
         name="hidden_weight",
@@ -97,12 +84,12 @@ class NTMCell(rnn_cell.RNNCell):
       "hidden": tf.get_variable(
         name="hidden_bias",
         shape=[self.n_hidden],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_normal_initializer(0.5, weight_var),
       ),
       "output": tf.get_variable(
         name="output_bias",
         shape=[self.n_inputs],
-        initializer=tf.random_normal_initializer(0, weight_var),
+        initializer=tf.random_normal_initializer(0.5, weight_var),
       ),
       "key": tf.get_variable(
         name="key_bias",
@@ -141,14 +128,6 @@ class NTMCell(rnn_cell.RNNCell):
       ),
     }
 
-    # TODO Too slow!
-    #layer_name = "controller"
-    #with tf.name_scope(layer_name):
-    #  for _, var in weights.iteritems():
-    #    NTMCell.variable_summaries(var, var.name)
-    #  for _, var in biases.iteritems():
-    #    NTMCell.variable_summaries(var, var.name)
-
     return weights, biases
 
   @staticmethod
@@ -157,49 +136,39 @@ class NTMCell(rnn_cell.RNNCell):
       tens,
       [tf.slice(tens, [0, 0], [1, -1])],
       name,
-      summarize=size,
+      summarize=size+1,
     )
 
   def controller(self, inputs, read):
-    first_layer = tf.concat(1, [inputs, read])
-    #first_layer = NTMCell.log_first(first_layer, "first_layer", 16)
-
     weights, biases = self.get_params()
 
+    first_layer = tf.concat(1, [inputs, read])
     hidden = tf.matmul(first_layer, weights["hidden"]) + biases["hidden"]
-    hidden = tf.nn.tanh(hidden)
+    hidden = tf.nn.relu(hidden)
 
     output = tf.matmul(hidden, weights["output"]) + biases["output"]
-    output = tf.tanh(output)
-    #output = NTMCell.log_first(output, "output", 8)
+    output = tf.nn.relu(output)
 
     key = tf.matmul(hidden, weights["key"]) + biases["key"]
     key = tf.sigmoid(key)
-    #key = NTMCell.log_first(key, "key", 4)
 
     key_str = tf.matmul(hidden, weights["key_str"]) + biases["key_str"]
     key_str = tf.nn.softplus(key_str)
-    #key_str = NTMCell.log_first(key_str, "key_str", 1)
 
     interp = tf.matmul(hidden, weights["interp"]) + biases["interp"]
     interp = tf.sigmoid(interp)
-    #interp = NTMCell.log_first(interp, "interp", 1)
 
     shift = tf.matmul(hidden, weights["shift"]) + biases["shift"]
     shift = tf.nn.softmax(shift)
-    #shift = NTMCell.log_first(shift, "shift", 3)
 
     sharp = tf.matmul(hidden, weights["sharp"]) + biases["sharp"]
     sharp = tf.nn.softplus(sharp) + 1
-    #sharp = NTMCell.log_first(sharp, "sharp", 1)
 
     add = tf.matmul(hidden, weights["add"]) + biases["add"]
     add = tf.sigmoid(add)
-    #add = NTMCell.log_first(add, "add", 4)
 
     erase = tf.matmul(hidden, weights["erase"]) + biases["erase"]
     erase = tf.sigmoid(erase)
-    #erase = NTMCell.log_first(erase, "erase", 4)
 
     return output, {
       "key": key,
@@ -215,41 +184,9 @@ class NTMCell(rnn_cell.RNNCell):
   def magnitude(tens, dim):
     return tf.sqrt(tf.reduce_sum(tf.square(tens), dim))
 
-  @staticmethod
-  def circular_convolution(v, k):
-    """Computes circular convolution.
-    Args:
-        v: a 1-D `Tensor` (vector)
-        k: a 1-D `Tensor` (kernel)
-    """
-    size = int(v.get_shape()[0])
-    kernel_size = int(k.get_shape()[0])
-    kernel_shift = int(math.floor(kernel_size/2.0))
-
-    def loop(idx):
-        if idx < 0: return size + idx
-        if idx >= size : return idx - size
-        else: return idx
-
-    kernels = []
-    for i in xrange(size):
-        indices = [loop(i+j) for j in xrange(kernel_shift, -kernel_shift-1, -1)]
-        v_ = tf.gather(v, indices)
-        kernels.append(tf.reduce_sum(v_ * k, 0))
-
-    # # code with double loop
-    # for i in xrange(size):
-    #     for j in xrange(kernel_size):
-    #         idx = i + kernel_shift - j + 1
-    #         if idx < 0: idx = idx + size
-    #         if idx >= size: idx = idx - size
-    #         w = tf.gather(v, int(idx)) * tf.gather(kernel, j)
-    #         output = tf.scatter_add(output, [i], tf.reshape(w, [1, -1]))
-
-    return tf.dynamic_stitch([i for i in xrange(size)], kernels)
-
   def __call__(self, inputs, state, scope=None):
     with tf.variable_scope(scope or type(self).__name__):
+      # Deserialize state from previous timestep.
       # Number of weights == Rows of memory matrix
       w0 = tf.slice(state, [0, 0], [-1, self.mem_nrows])
       M0 = tf.slice(state, [0, self.mem_nrows], [-1, -1])
@@ -257,7 +194,7 @@ class NTMCell(rnn_cell.RNNCell):
       M_bias = tf.get_variable(
         name="mem_bias",
         shape=[self.mem_nrows, self.mem_ncols],
-        initializer=tf.random_normal_initializer(0, 0.5),
+        initializer=tf.random_normal_initializer(0, 0.1),
       )
       M0 = M0 + M_bias
 
@@ -268,25 +205,19 @@ class NTMCell(rnn_cell.RNNCell):
       output, head = self.controller(inputs, read)
 
       # Content focusing
-      #head["key"] = NTMCell.log_first(head["key"], "key", 20)
+      # Compute cosine similarity
       key = tf.expand_dims(head["key"], 1)
       key_matches = tf.batch_matmul(key, tf.transpose(M0, [0, 2, 1]))
       key_matches = tf.squeeze(key_matches)
-      #key_matches = NTMCell.log_first(key_matches, "key_matches", 20)
       key_mag = tf.expand_dims(NTMCell.magnitude(head["key"], 1), 1)
       M_col_mag = NTMCell.magnitude(M0, 2)
       cosine_sim = key_matches / (key_mag * M_col_mag)
-      #cosine_sim = NTMCell.log_first(cosine_sim, "cosine_sim", 20)
+      # Compute content weights
       wc = tf.nn.softmax(head["key_str"] * cosine_sim)
-      #wc = NTMCell.log_first(wc, "wc", 20)
 
       # Location focusing
       wg = head["interp"] * wc + (1 - head["interp"]) * w0
-      #wg = NTMCell.log_first(wg, "wg", 20)
-      #head["shift"] = NTMCell.log_first(head["shift"], "shift", 20)
-      #ws = NTMCell.circular_convolution(wg, head["shift"])
       ws = rotate.ntm_rotate(wg, head["shift"])
-      #ws = NTMCell.log_first(ws, "ws", 20)
       ws_pow = tf.pow(ws, head["sharp"])
       w1 = ws_pow / tf.reduce_sum(ws_pow, 1, keep_dims=True)
 
@@ -295,20 +226,14 @@ class NTMCell(rnn_cell.RNNCell):
         tf.expand_dims(w1, 2),
         tf.expand_dims(head["erase"], 1)
       )  
-      #we = tf.Print(
-      #  we,
-      #  [we],
-      #  "we",
-      #  summarize=20,
-      #)
       Me = M0 * we
       M1 = Me + tf.batch_matmul(
         tf.expand_dims(w1, 2),
         tf.expand_dims(head["add"], 1),
       )
 
+      # Serialize state for next timestep
       M1 = M1 - M_bias
-     
       sw1 = tf.reshape(w1, [-1, self.mem_nrows])
       sM1 = tf.reshape(M1, [-1, self.mem_nrows * self.mem_ncols])
       new_state = tf.concat(1, [sw1, sM1])

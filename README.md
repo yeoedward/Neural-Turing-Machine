@@ -6,7 +6,9 @@ Paper: http://arxiv.org/abs/1410.5401
 
 TODO:
 
-  Solve NaN numerical instability.
+  Figure out why loss isn't decreasing to 0.
+    content weight is very spread out.
+    Test gradient of rotate.
 
   Run on GPUs.
 

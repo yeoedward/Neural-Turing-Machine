@@ -4,9 +4,6 @@ import numpy as np
 import random
 import ntm
 
-mem_nrow = 128
-mem_ncol = 20
-
 # Define loss and optimizer
 def var_seq_loss(preds, y, nsteps):
   seq_len = (nsteps[0] - 1) / 2
@@ -21,28 +18,41 @@ def var_seq_loss(preds, y, nsteps):
 def predict(preds):
   return tf.sigmoid(preds)
 
-def create_rnn(max_steps, n_input):
+def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
   # Batch size, max_steps, n_input
   x = tf.placeholder("float", [None, None, n_input])
   y = tf.placeholder("float", [None, None, n_input])
   istate = tf.placeholder("float", [None, mem_nrow*mem_ncol + mem_nrow])
+  # TODO Remove after testing.
+  #istate = tf.placeholder("float", [None, 600])
   nsteps = tf.placeholder("int32")
-  # TODO Expose params.
   ntm_cell = ntm.NTMCell(
       n_inputs=n_input,
       n_hidden=100,
       mem_nrows=mem_nrow,
       mem_ncols=mem_ncol,
   )
+  X = x
+  # TODO Remove after testing.
   #lstm_cell = rnn_cell.BasicLSTMCell(
-  #  num_units= 
+  #  num_units=100,
   #)
+  #multi_cell = rnn_cell.MultiRNNCell([lstm_cell] * 3)
+  #hidden = tf.Variable(tf.random_normal([n_input, 100], 0.1))
+  #X = tf.reshape(X, [-1, n_input])
+  #X = tf.nn.relu(tf.matmul(X, hidden))
+  #X = tf.reshape(X, [-1, max_steps, 100])
   outputs, _ = rnn.dynamic_rnn(
       ntm_cell,
-      x,
+      X,
       initial_state=istate,
       sequence_length=nsteps,
   )
+  # TODO Remove after testing
+  #hidden2 = tf.Variable(tf.random_normal([100, n_input], 0.1))
+  #outputs = tf.reshape(outputs, [-1, 100])
+  #outputs = tf.nn.tanh(tf.matmul(outputs, hidden2))
+  #outputs = tf.reshape(outputs, [-1, max_steps, n_input])
 
   # Loss functions
   cost = var_seq_loss(outputs, y, nsteps)
@@ -77,7 +87,7 @@ def gen_seq(nseqs, max_steps, seq_len, nbits):
   xs = []
   ys = []
   for _ in xrange(nseqs):
-    # Note that we reserve the all-zero and all-one vectors as the 
+    # Note that we reserve the 0 and 1 in binary as the 
     # padding and delimeter symbols
     seq = [random.randint(2, 2**nbits - 1) for _ in xrange(seq_len)]
     # Convert each int to binary
@@ -103,20 +113,18 @@ def train(
     display_step=10,
     ):
   sess = tf.Session()
-  # TODO Too slow!
-  #merged = tf.merge_all_summaries()
-  #train_writer = tf.train.SummaryWriter("log", sess.graph)
 
   # Initializing the variables
   init = tf.initialize_all_variables()
   sess.run(init)
   step = 1
 
+  # TODO Remove after debugging
   # We generate a finite amount of training data even
   # though we could theoretically have infinite data
   # for debugging purposes (loss should almost always decrease).
   training_data = []
-  nbatches = 2048
+  nbatches = 10
   for i in xrange(nbatches):
     seq_len = random.randint(18, 20)
     (xs, ys, nsteps) = gen_seq(
@@ -132,9 +140,11 @@ def train(
   while step * batch_size < training_iters:
     xs, ys, nsteps = training_data[batch_idx]
     batch_idx = (batch_idx + 1) % nbatches
-    # TODO Is this the right thing to do?
+    # TODO Is it appropriate for initial state to be all ones?
     # TODO Refactor magic number
     istate = np.ones((batch_size, mem_nrow*mem_ncol + mem_nrow))
+    # TODO Remove after testing
+    #istate = np.ones((batch_size, 600))
     sess.run(
       model['optimizer'],
       feed_dict={
@@ -156,8 +166,6 @@ def train(
         )
         print "Iter " + str(step*batch_size) + (
           ", Minibatch Loss= " + "{:.6f}".format(loss))
-        # TODO Too slow!
-        #train_writer.add_summary(summary, step)
 
     step += 1
   print "Optimization Finished!"
@@ -165,7 +173,14 @@ def train(
 # Training Parameters
 max_steps = 41
 n_input = 8
-model = create_rnn(max_steps, n_input)
+mem_nrow = 128
+mem_ncol = 20
+model = create_rnn(
+  max_steps=max_steps,
+  n_input=n_input,
+  mem_nrow=mem_nrow,
+  mem_ncol=mem_ncol,
+)
 
 if __name__ == "__main__":
   train(

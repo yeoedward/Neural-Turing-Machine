@@ -52,8 +52,10 @@ class NTMRotateGradOp : public OpKernel {
       for (int i = 0; i < nrows; i++) {
         float total = 0;
         for (int j = 0; j < nrows; j++) {
-          int shift_idx = (((j - i) % nshift) + nshift) % nshift;
-          total += grad(b*nrows + j) * shifts(b*nshift + shift_idx);
+          int shift_idx = (((j - i + 1) % nrows) + nrows) % nrows;
+          if (shift_idx < nshift) {
+            total += grad(b*nrows + j) * shifts(b*nshift + shift_idx);
+          }
         }
         weights_grad(b*nrows + i) = total;
       }
@@ -65,7 +67,7 @@ class NTMRotateGradOp : public OpKernel {
         for (int j = 0; j < nrows; j++) {
           float subtotal = 0;
           for (int k = 0; k < nrows; k++) {
-            int shift_idx = (((j - k) % nshift) + nshift) % nshift;
+            int shift_idx = (((j - k + 1) % nrows) + nrows) % nrows;
             if (shift_idx == i) {
               subtotal += weights(b*nrows + k);
             }
