@@ -119,7 +119,7 @@ def gen_seq(nseqs, max_steps, seq_len, nbits):
     seq = [random.randint(2, 2**nbits - 1) for _ in xrange(seq_len)]
     # Convert each int to binary
     seq = [
-            [int(digit) for digit in '{0:08b}'.format(num)]
+            [int(digit) for digit in ('{0:0' + str(nbits) + 'b}').format(num)]
             for num in seq
           ]
     npad = max_steps - nsteps
