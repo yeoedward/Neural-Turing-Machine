@@ -2,11 +2,11 @@
 #include "tensorflow/core/framework/op_kernel.h"
 
 REGISTER_OP("NTMRotateGrad")
-  .Input("weights: float")
-  .Input("shifts: float")
-  .Input("grad: float")
-  .Output("weights_grad: float")
-  .Output("shifts_grad: float");
+  .Input("weights: double")
+  .Input("shifts: double")
+  .Input("grad: double")
+  .Output("weights_grad: double")
+  .Output("shifts_grad: double");
 
 using namespace tensorflow;
 
@@ -17,11 +17,11 @@ class NTMRotateGradOp : public OpKernel {
   void Compute(OpKernelContext* context) override {
     // Grab the input tensors
     const Tensor& grad_tensor = context->input(0);
-    auto grad = grad_tensor.flat<float>();
+    auto grad = grad_tensor.flat<double>();
     const Tensor& weights_tensor = context->input(1);
-    auto weights = weights_tensor.flat<float>();
+    auto weights = weights_tensor.flat<double>();
     const Tensor& shifts_tensor = context->input(2);
-    auto shifts = shifts_tensor.flat<float>();
+    auto shifts = shifts_tensor.flat<double>();
 
     const TensorShape& weights_shape = weights_tensor.shape();
     OP_REQUIRES(context, grad_tensor.shape().IsSameSize(weights_shape),
@@ -45,12 +45,12 @@ class NTMRotateGradOp : public OpKernel {
     Tensor* shifts_grad_tensor = NULL;
     OP_REQUIRES_OK(context, context->allocate_output(1, shifts_tensor.shape(),
                                                      &shifts_grad_tensor));
-    auto weights_grad = weights_grad_tensor->template flat<float>();
-    auto shifts_grad = shifts_grad_tensor->template flat<float>();
+    auto weights_grad = weights_grad_tensor->template flat<double>();
+    auto shifts_grad = shifts_grad_tensor->template flat<double>();
 
     for (int b = 0; b < nbatches; b++) {
       for (int i = 0; i < nrows; i++) {
-        float total = 0;
+        double total = 0;
         for (int j = 0; j < nrows; j++) {
           int shift_idx = (((j - i + 1) % nrows) + nrows) % nrows;
           if (shift_idx < nshift) {
@@ -63,9 +63,9 @@ class NTMRotateGradOp : public OpKernel {
 
     for (int b = 0; b < nbatches; b++) {
       for (int i = 0; i < nshift; i++) {
-        float total = 0;
+        double total = 0;
         for (int j = 0; j < nrows; j++) {
-          float subtotal = 0;
+          double subtotal = 0;
           for (int k = 0; k < nrows; k++) {
             int shift_idx = (((j - k + 1) % nrows) + nrows) % nrows;
             if (shift_idx == i) {

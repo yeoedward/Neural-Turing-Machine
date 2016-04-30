@@ -2,9 +2,9 @@
 #include "tensorflow/core/framework/op_kernel.h"
 
 REGISTER_OP("NTMRotate")
-  .Input("weights: float")
-  .Input("shifts: float")
-  .Output("shifted_weights: float");
+  .Input("weights: double")
+  .Input("shifts: double")
+  .Output("shifted_weights: double");
 
 using namespace tensorflow;
 
@@ -15,9 +15,9 @@ class NTMRotateOp : public OpKernel {
   void Compute(OpKernelContext* context) override {
     // Grab the input tensors
     const Tensor& weights_tensor = context->input(0);
-    auto weights = weights_tensor.flat<float>();
+    auto weights = weights_tensor.flat<double>();
     const Tensor& shifts_tensor = context->input(1);
-    auto shifts = shifts_tensor.flat<float>();
+    auto shifts = shifts_tensor.flat<double>();
 
     const TensorShape& weights_shape = weights_tensor.shape();
     OP_REQUIRES(context, weights_shape.dims() == 2,
@@ -36,11 +36,11 @@ class NTMRotateOp : public OpKernel {
     Tensor* output_tensor = NULL;
     OP_REQUIRES_OK(context, context->allocate_output(0, weights_tensor.shape(),
                                                      &output_tensor));
-    auto output = output_tensor->template flat<float>();
+    auto output = output_tensor->template flat<double>();
 
     for (int i = 0; i < nbatches; i++) {
       for (int j = 0; j < nrows; j++) {
-        float total = 0;
+        double total = 0;
         for (int k = 0; k < nrows; k++) {
           int shift_idx = (((j - k + 1) % nrows) + nrows) % nrows;
           if (shift_idx < nshift) {

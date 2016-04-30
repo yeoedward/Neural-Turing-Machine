@@ -58,7 +58,17 @@ shifts = tf.constant([
   [0., 0., 1.], 
   [1., 0., 0.],
 ])
+rotated = ntm_rotate_module.ntm_rotate(weights, shifts)
 
 with tf.Session() as sess:
   print sess.run(rotate(weights, shifts))
-  print sess.run(ntm_rotate_module.ntm_rotate(weights, shifts))
+  print sess.run(rotated)
+
+  err = tf.test.compute_gradient_error(
+    [weights, shifts],
+    [[2, 7], [2, 3]],
+    rotated,
+    [2, 7],
+  )
+  # Ideally should be < 1e-4, but this seems good enough for now.
+  print "Gradient error: ", err
