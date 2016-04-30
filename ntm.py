@@ -394,7 +394,7 @@ class NTMCell(rnn_cell.RNNCell):
 
   def read_weights(self, M0, read_w0s, read_heads):
     read_w1s = []
-    # Compute read weights and serialize.
+    # Compute read weights
     for i in xrange(self.n_heads): 
       head = read_heads[i]
       w0 = read_w0s[i]
