@@ -369,26 +369,29 @@ class NTMCell(rnn_cell.RNNCell):
     return reads
 
   def write(self, M0, write_w0s, write_heads):
-    M1 = M0
     write_w1s = []
     for i in xrange(self.n_heads):
       head = write_heads[i]
       w0 = write_w0s[i]
-      # Important that we read from M0, as opposed to M1.
-      # We do not want our addressing mechanism to be
-      # affected by the write order.
       w1 = NTMCell.address(M0, w0, head)
+      write_w1s.append(w1)
+
+    M1 = M0
+    # Erases
+    for w1 in write_w1s:
       we = 1 - tf.batch_matmul(
         tf.expand_dims(w1, 2),
         tf.expand_dims(head["erase"], 1)
       )  
-      Me = M1 * we
+      M1 = M1 * we
+
+    # Writes
+    for w1 in write_w1s:
       add = tf.batch_matmul(
         tf.expand_dims(w1, 2),
         tf.expand_dims(head["add"], 1),
       )
-      M1 = Me + add
-      write_w1s.append(w1)
+      M1 = M1 + add
 
     return M1, write_w1s
 
