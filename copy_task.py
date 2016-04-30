@@ -134,8 +134,8 @@ def train(
     model,
     n_input,
     max_steps,
-    training_iters=1e6,
-    batch_size=32,
+    training_iters=1e8,
+    batch_size=128,
     display_step=10,
     ):
   sess = tf.Session()
@@ -144,6 +144,7 @@ def train(
   sess.run(init)
   step = 1
 
+  saver = tf.train.Saver()
   print "Training commencing..."
   while step * batch_size < training_iters:
     (xs, ys, nsteps) = gen_seq(
@@ -178,6 +179,9 @@ def train(
           ", Minibatch Loss= " + "{:.6f}".format(loss) +
           ", Average bit errors= " + "{:.6f}".format(err)
         )
+    if step % 1000 == 0:
+      save_path = saver.save(sess, "checkpoints/model" + str(step) + ".ckpt")
+      print "Model saved in file: %s" % save_path
 
     step += 1
   print "Optimization Finished!"

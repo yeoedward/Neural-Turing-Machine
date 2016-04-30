@@ -183,7 +183,7 @@ class NTMCell(rnn_cell.RNNCell):
   def head_outputs(weights, biases, hidden, i, is_write):
     key_name = NTMCell.var_name("key", i, is_write)
     key = tf.matmul(hidden, weights[key_name]) + biases[key_name]
-    key = tf.nn.tanh(key)
+    key = tf.nn.relu(key)
 
     key_str_name = NTMCell.var_name("key_str", i, is_write)
     key_str = tf.matmul(hidden, weights[key_str_name]) + biases[key_str_name]
