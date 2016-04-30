@@ -19,6 +19,7 @@ X = [
 
 ntm_cell = ntm.NTMCell(
   n_inputs=2,
+  n_outputs=3,
   n_hidden=4,
   mem_nrows=10,
   mem_ncols=5,

@@ -15,10 +15,19 @@ def _ntm_rotate_grad(op, grad):
   return [weights_grad, shifts_grad]
 
 class NTMCell(rnn_cell.RNNCell):
-  def __init__(self, n_inputs, n_hidden, mem_nrows, mem_ncols, n_heads):
+  def __init__(
+      self,
+      n_inputs,
+      n_outputs,
+      n_hidden,
+      mem_nrows,
+      mem_ncols,
+      n_heads,
+    ):
     self.mem_nrows = mem_nrows
     self.mem_ncols = mem_ncols
     self.n_inputs = n_inputs
+    self.n_outputs = n_outputs
     self.n_hidden = n_hidden
     self.n_heads = n_heads
 
@@ -28,7 +37,7 @@ class NTMCell(rnn_cell.RNNCell):
 
   @property
   def output_size(self):
-    return self.n_inputs
+    return self.n_outputs
 
   @staticmethod
   def var_name(v, i, is_write):
@@ -45,7 +54,7 @@ class NTMCell(rnn_cell.RNNCell):
       biases[key_name] = tf.get_variable(
         name=key_name + "_bias",
         shape=[self.mem_ncols],
-        initializer=tf.random_uniform_initializer(init_min, init_max),
+        initializer=tf.constant_initializer(0),
       )
 
       key_str_name = NTMCell.var_name("key_str", i, is_write)
@@ -57,7 +66,7 @@ class NTMCell(rnn_cell.RNNCell):
       biases[key_str_name] = tf.get_variable(
         name=key_str_name + "_bias",
         shape=[1],
-        initializer=tf.random_uniform_initializer(init_min, init_max),
+        initializer=tf.constant_initializer(0),
       )
 
       interp_name = NTMCell.var_name("interp", i, is_write)
@@ -69,7 +78,7 @@ class NTMCell(rnn_cell.RNNCell):
       biases[interp_name] = tf.get_variable(
         name=interp_name + "_bias",
         shape=[1],
-        initializer=tf.random_uniform_initializer(init_min, init_max),
+        initializer=tf.constant_initializer(0),
       )
 
       shift_name = NTMCell.var_name("shift", i, is_write)
@@ -81,7 +90,7 @@ class NTMCell(rnn_cell.RNNCell):
       biases[shift_name] = tf.get_variable(
         name=shift_name + "_bias",
         shape=[3],
-        initializer=tf.random_uniform_initializer(init_min, init_max),
+        initializer=tf.constant_initializer(0),
       )
 
       sharp_name = NTMCell.var_name("sharp", i, is_write)
@@ -93,7 +102,7 @@ class NTMCell(rnn_cell.RNNCell):
       biases[sharp_name] = tf.get_variable(
         name=sharp_name + "_bias",
         shape=[1],
-        initializer=tf.random_uniform_initializer(init_min, init_max),
+        initializer=tf.constant_initializer(0),
       )
 
       if is_write:
@@ -106,7 +115,7 @@ class NTMCell(rnn_cell.RNNCell):
         biases[add_name] = tf.get_variable(
           name=add_name + "_bias",
           shape=[self.mem_ncols],
-          initializer=tf.random_uniform_initializer(init_min, init_max),
+          initializer=tf.constant_initializer(0),
         )
 
         erase_name = NTMCell.var_name("erase", i, is_write)
@@ -118,7 +127,7 @@ class NTMCell(rnn_cell.RNNCell):
         biases[erase_name] = tf.get_variable(
           name=erase_name + "_bias",
           shape=[self.mem_ncols],
-          initializer=tf.random_uniform_initializer(init_min, init_max),
+          initializer=tf.constant_initializer(0),
         )
 
   def get_params(self):
@@ -133,7 +142,7 @@ class NTMCell(rnn_cell.RNNCell):
       ),
       "output": tf.get_variable(
         name="output_weight",
-        shape=[self.n_hidden, self.n_inputs],
+        shape=[self.n_hidden, self.n_outputs],
         initializer=tf.random_uniform_initializer(init_min, init_max),
       ),
     }
@@ -141,12 +150,12 @@ class NTMCell(rnn_cell.RNNCell):
       "hidden": tf.get_variable(
         name="hidden_bias",
         shape=[self.n_hidden],
-        initializer=tf.random_uniform_initializer(init_min, init_max),
+        initializer=tf.constant_initializer(0),
       ),
       "output": tf.get_variable(
         name="output_bias",
-        shape=[self.n_inputs],
-        initializer=tf.random_uniform_initializer(init_min, init_max),
+        shape=[self.n_outputs],
+        initializer=tf.constant_initializer(0),
       ),
     }
 
@@ -212,7 +221,7 @@ class NTMCell(rnn_cell.RNNCell):
     if is_write:
       add_name = NTMCell.var_name("add", i, is_write)
       add = tf.matmul(hidden, weights[add_name]) + biases[add_name]
-      add = tf.sigmoid(add)
+      add = tf.nn.relu(add)
 
       erase_name = NTMCell.var_name("erase", i, is_write)
       erase = tf.matmul(hidden, weights[erase_name]) + biases[erase_name]
@@ -227,10 +236,10 @@ class NTMCell(rnn_cell.RNNCell):
     weights, biases = self.get_params()
     first_layer = tf.concat(1, [inputs] + reads)
     hidden = tf.matmul(first_layer, weights["hidden"]) + biases["hidden"]
-    hidden = tf.nn.tanh(hidden)
+    hidden = tf.nn.relu(hidden)
 
     output = tf.matmul(hidden, weights["output"]) + biases["output"]
-    output = tf.nn.tanh(output)
+    output = tf.nn.relu(output)
     
     write_heads = []
     read_heads = []
@@ -264,9 +273,15 @@ class NTMCell(rnn_cell.RNNCell):
     #head["key_str"] = tf.Print(head["key_str"], [tf.reduce_mean(head["key_str"])], "key_str mean")
     #head["key_str"] = tf.Print(head["key_str"], [tf.reduce_max(head["key_str"])], "key_str max")
     wc = tf.nn.softmax(head["key_str"] * cosine_sim)
-    #wc = tf.Print(wc, [tf.reduce_min(wc)], "wc min")
-    #wc = tf.Print(wc, [tf.reduce_mean(wc)], "wc mean")
-    #wc = tf.Print(wc, [tf.reduce_max(wc)], "wc max")
+    #wc = tf.Print(wc, [tf.reduce_min(wc)], "wc min", first_n=10)
+    #wc = tf.Print(wc, [tf.reduce_mean(wc)], "wc mean", first_n=10)
+    #wc = tf.Print(wc, [tf.reduce_max(wc)], "wc max", first_n=10)
+    #w0 = tf.Print(w0, [tf.reduce_min(w0)], "w0 min", first_n=10)
+    #w0 = tf.Print(w0, [tf.reduce_mean(w0)], "w0 mean", first_n=10)
+    #w0 = tf.Print(w0, [tf.reduce_max(w0)], "w0 max", first_n=10)
+    #head["interp"] = tf.Print(head["interp"], [tf.reduce_min(head["interp"])], "winterp min", first_n=10)
+    #head["interp"] = tf.Print(head["interp"], [tf.reduce_mean(head["interp"])], "interp mean", first_n=10)
+    #head["interp"] = tf.Print(head["interp"], [tf.reduce_max(head["interp"])], "interp max", first_n=10)
 
     # Location focusing
     wg = head["interp"] * wc + (1 - head["interp"]) * w0
@@ -284,6 +299,11 @@ class NTMCell(rnn_cell.RNNCell):
     #w1 = tf.Print(w1, [tf.reduce_max(w1)], "w1 max")
 
     return w1
+
+  @staticmethod
+  def one_hot(shape, dtype):
+    indices = tf.zeros([shape[0]], dtype=tf.int64)
+    return tf.one_hot(indices, shape[1], 1, 0)
 
   # TODO Refactor into smaller functions.
   def __call__(self, inputs, state, scope=None):
@@ -306,21 +326,20 @@ class NTMCell(rnn_cell.RNNCell):
 
       state_idx = self.mem_nrows * self.mem_ncols
 
-
       read_w_bias = []
       for i in xrange(self.n_heads):
-        read_w_bias.append(tf.nn.softmax(tf.get_variable(
+        read_w_bias.append(tf.get_variable(
           name="read_bias" + str(i),
           shape=[1, self.mem_nrows],
-          initializer=tf.random_uniform_initializer(0, 1),
-        )))
+          initializer=NTMCell.one_hot,
+        ))
       write_w_bias = []
       for i in xrange(self.n_heads):
-        write_w_bias.append(tf.nn.softmax(tf.get_variable(
+        write_w_bias.append(tf.get_variable(
           name="write_bias" + str(i),
           shape=[1, self.mem_nrows],
-          initializer=tf.random_uniform_initializer(0, 1),
-        )))
+          initializer=NTMCell.one_hot,
+        ))
 
       # Deserialize read weights from previous time step.
       read_w0s = []

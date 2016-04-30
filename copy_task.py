@@ -50,6 +50,7 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
   nsteps = tf.placeholder("int32")
   ntm_cell = ntm.NTMCell(
       n_inputs=n_input,
+      n_outputs=100,
       n_hidden=100,
       mem_nrows=mem_nrow,
       mem_ncols=mem_ncol,
@@ -72,10 +73,10 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
       sequence_length=nsteps,
   )
   # TODO Remove after testing
-  #hidden2 = tf.Variable(tf.random_normal([100, n_input], 0.1))
-  #outputs = tf.reshape(outputs, [-1, 100])
-  #outputs = tf.nn.tanh(tf.matmul(outputs, hidden2))
-  #outputs = tf.reshape(outputs, [-1, max_steps, n_input])
+  hidden2 = tf.Variable(tf.random_normal([100, n_input], 0.1))
+  outputs = tf.reshape(outputs, [-1, 100])
+  outputs = tf.matmul(outputs, hidden2)
+  outputs = tf.reshape(outputs, [-1, max_steps, n_input])
 
   # Loss functions
   cost = var_seq_loss(outputs, y, nsteps)
@@ -135,7 +136,7 @@ def train(
     n_input,
     max_steps,
     training_iters=1e8,
-    batch_size=128,
+    batch_size=1,
     display_step=10,
     ):
   sess = tf.Session()
@@ -150,7 +151,7 @@ def train(
     (xs, ys, nsteps) = gen_seq(
       nseqs=batch_size,
       max_steps=max_steps,
-      seq_len=random.randint(1, 20),
+      seq_len=random.randint(1, 5),
       nbits=n_input,
     )
     istate = np.zeros((batch_size, mem_nrow*mem_ncol + 2*mem_nrow))

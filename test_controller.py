@@ -3,6 +3,7 @@ import ntm
 
 ntm_cell = ntm.NTMCell(
   n_inputs=1,
+  n_outputs=1,
   n_hidden=2,
   mem_nrows=10,
   mem_ncols=2,
