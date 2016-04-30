@@ -50,7 +50,7 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
   nsteps = tf.placeholder("int32")
   ntm_cell = ntm.NTMCell(
       n_inputs=n_input,
-      n_outputs=100,
+      n_outputs=n_input,
       n_hidden=100,
       mem_nrows=mem_nrow,
       mem_ncols=mem_ncol,
@@ -73,10 +73,10 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
       sequence_length=nsteps,
   )
   # TODO Remove after testing
-  hidden2 = tf.Variable(tf.random_normal([100, n_input], 0.1))
-  outputs = tf.reshape(outputs, [-1, 100])
-  outputs = tf.matmul(outputs, hidden2)
-  outputs = tf.reshape(outputs, [-1, max_steps, n_input])
+  #hidden2 = tf.Variable(tf.random_normal([100, n_input], 0.1))
+  #outputs = tf.reshape(outputs, [-1, 100])
+  #outputs = tf.matmul(outputs, hidden2)
+  #outputs = tf.reshape(outputs, [-1, max_steps, n_input])
 
   # Loss functions
   cost = var_seq_loss(outputs, y, nsteps)

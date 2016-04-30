@@ -239,7 +239,6 @@ class NTMCell(rnn_cell.RNNCell):
     hidden = tf.nn.relu(hidden)
 
     output = tf.matmul(hidden, weights["output"]) + biases["output"]
-    output = tf.nn.relu(output)
     
     write_heads = []
     read_heads = []
@@ -364,6 +363,9 @@ class NTMCell(rnn_cell.RNNCell):
       reads = []
       for i in xrange(self.n_heads):
         w0 = read_w0s[i]
+        #w0 = tf.Print(w0, [tf.reduce_min(w0)], "w0 min", first_n=10)
+        #w0 = tf.Print(w0, [tf.reduce_mean(w0)], "w0 mean", first_n=10)
+        #w0 = tf.Print(w0, [tf.reduce_max(w0)], "w0 max", first_n=10)
         r = tf.batch_matmul(tf.expand_dims(w0, 1), M0)
         r = tf.squeeze(r, [1])
         reads.append(r)
@@ -377,6 +379,9 @@ class NTMCell(rnn_cell.RNNCell):
       for i in xrange(self.n_heads):
         head = write_heads[i]
         w0 = write_w0s[i]
+        #w0 = tf.Print(w0, [tf.reduce_min(w0)], "w0 min", first_n=10)
+        #w0 = tf.Print(w0, [tf.reduce_mean(w0)], "w0 mean", first_n=10)
+        #w0 = tf.Print(w0, [tf.reduce_max(w0)], "w0 max", first_n=10)
         # Important that we read from M0, as opposed to M1.
         # We do not want our addressing mechanism to be
         # affected by the write order.
