@@ -6,11 +6,8 @@ Paper: http://arxiv.org/abs/1410.5401
 
 TODO:
 
-  Implement new head for read.
-
-  Figure out why loss isn't decreasing to 0.
-    Predictions are always the same over different time steps! (WTF)
-    content weight is very spread out.
+  Improve learning:
+    We seem to be stuck in a local minima: predicting 0.5 for everything.
 
   Run on GPUs.
 

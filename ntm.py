@@ -212,10 +212,10 @@ class NTMCell(rnn_cell.RNNCell):
     weights, biases = self.get_params()
     first_layer = tf.concat(1, [inputs] + reads)
     hidden = tf.matmul(first_layer, weights["hidden"]) + biases["hidden"]
-    hidden = tf.nn.relu(hidden)
+    hidden = tf.nn.tanh(hidden)
 
     output = tf.matmul(hidden, weights["output"]) + biases["output"]
-    output = tf.nn.relu(output)
+    output = tf.nn.tanh(output)
     
     write_heads = []
     read_heads = []

@@ -13,7 +13,7 @@ def var_seq_loss(preds, y, nsteps):
     tf.pack([0, start, 0]),
     tf.pack([-1, seq_len, -1]),
   )
-  return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(output_seq, y))
+  return tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(output_seq, y))
 
 def bits_err_per_seq(out, expected, nsteps):
   pred = tf.sigmoid(out)
@@ -63,7 +63,7 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
   #multi_cell = rnn_cell.MultiRNNCell([lstm_cell] * 3)
   #hidden = tf.Variable(tf.random_normal([n_input, 100], 0.1))
   #X = tf.reshape(X, [-1, n_input])
-  #X = tf.nn.relu(tf.matmul(X, hidden))
+  #X = tf.nn.tanh(tf.matmul(X, hidden))
   #X = tf.reshape(X, [-1, max_steps, 100])
   outputs, _ = rnn.dynamic_rnn(
       ntm_cell,
@@ -130,12 +130,18 @@ def gen_seq(nseqs, max_steps, seq_len, nbits):
     ys.append(seq)
   return np.array(xs), np.array(ys), np.tile(nsteps, nseqs)
 
+def softmax(x):
+  return np.exp(x) / np.sum(np.exp(x), axis=1, keepdims=True)
+
+def gen_weight(batch_size, length):
+  return softmax(np.random.rand(batch_size, length))
+
 def train(
     model,
     n_input,
     max_steps,
-    training_iters=1000000,
-    batch_size=1,
+    training_iters=10000,
+    batch_size=128,
     display_step=10,
     ):
   sess = tf.Session()
@@ -145,30 +151,18 @@ def train(
   sess.run(init)
   step = 1
 
-  # TODO Remove after debugging
-  # We generate a finite amount of training data even
-  # though we could theoretically have infinite data
-  # for debugging purposes (loss should almost always decrease).
-  training_data = []
-  nbatches = 100000
-  for i in xrange(nbatches):
-    seq_len = random.randint(1, 20)
+  print "Training commencing..."
+  while step * batch_size < training_iters:
     (xs, ys, nsteps) = gen_seq(
       nseqs=batch_size,
       max_steps=max_steps,
-      seq_len=seq_len,
+      seq_len=random.randint(1, 20),
       nbits=n_input,
     )
-    training_data.append((xs, ys, nsteps))
-  batch_idx = 0
-
-  print "Training commencing..."
-  while step * batch_size < training_iters:
-    xs, ys, nsteps = training_data[batch_idx]
-    batch_idx = (batch_idx + 1) % nbatches
-    # TODO Is it appropriate for initial state to be all ones?
-    # TODO Refactor magic number
-    istate = np.zeros((batch_size, mem_nrow*mem_ncol + 2*mem_nrow))
+    mem = np.zeros((batch_size, mem_nrow*mem_ncol))
+    w1 = gen_weight(batch_size, mem_nrow)
+    w2 = gen_weight(batch_size, mem_nrow)
+    istate = np.concatenate([mem, w1, w2], axis=1)
     # TODO Remove after testing
     #istate = np.ones((batch_size, 600))
     sess.run(
