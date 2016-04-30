@@ -353,6 +353,9 @@ class NTMCell(rnn_cell.RNNCell):
       write_w0s = []
       for _ in xrange(self.n_heads):
         w0 = tf.slice(state, [0, state_idx], [-1, self.mem_nrows])
+        #write_w_bias[i] = tf.Print(write_w_bias[i], [tf.reduce_min(write_w_bias[i])], "write bias min")
+        #write_w_bias[i] = tf.Print(write_w_bias[i], [tf.reduce_mean(write_w_bias[i])], "write bias mean")
+        #write_w_bias[i] = tf.Print(write_w_bias[i], [tf.reduce_max(write_w_bias[i])], "write bias max")
         w0 += write_w_bias[i]
         write_w0s.append(w0)
         state_idx += self.mem_nrows
