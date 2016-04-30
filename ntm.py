@@ -271,120 +271,148 @@ class NTMCell(rnn_cell.RNNCell):
     indices = tf.zeros([shape[0]], dtype=tf.int64)
     return tf.one_hot(indices, shape[1], 1, 0)
 
-  # TODO Refactor into smaller functions.
+  def get_state_biases(self):
+    # States have a trainable bias.
+    # Add bias after deserializing, and subtract before serializing.
+    M_bias = tf.get_variable(
+      name="mem_bias",
+      shape=[self.mem_nrows, self.mem_ncols],
+      initializer=tf.random_uniform_initializer(0, 1),
+    )
+    read_w_bias = []
+    for i in xrange(self.n_heads):
+      read_w_bias.append(tf.get_variable(
+        name="read_bias" + str(i),
+        shape=[1, self.mem_nrows],
+        initializer=NTMCell.one_hot,
+      ))
+    write_w_bias = []
+    for i in xrange(self.n_heads):
+      write_w_bias.append(tf.get_variable(
+        name="write_bias" + str(i),
+        shape=[1, self.mem_nrows],
+        initializer=NTMCell.one_hot,
+      ))
+
+    return M_bias, write_w_bias, read_w_bias
+
+  def deserialize(self, state):
+    M_bias, write_w_bias, read_w_bias = self.get_state_biases()
+
+    # Deserialize state from previous timestep.
+    M0 = tf.slice(
+      state,
+      [0, 0],
+      [-1, self.mem_nrows * self.mem_ncols],
+    )
+    M0 = tf.reshape(M0, [-1, self.mem_nrows, self.mem_ncols])
+    M0 += M_bias
+
+    state_idx = self.mem_nrows * self.mem_ncols
+
+    # Deserialize read weights from previous time step.
+    read_w0s = []
+    for i in xrange(self.n_heads):
+      # Number of weights == Rows of memory matrix
+      w0 = tf.slice(state, [0, state_idx], [-1, self.mem_nrows])
+      w0 += read_w_bias[i]
+      read_w0s.append(w0)
+      state_idx += self.mem_nrows
+
+    # Do the same for write heads.
+    write_w0s = []
+    for _ in xrange(self.n_heads):
+      w0 = tf.slice(state, [0, state_idx], [-1, self.mem_nrows])
+      w0 += write_w_bias[i]
+      write_w0s.append(w0)
+      state_idx += self.mem_nrows
+
+    assert state_idx == state.get_shape()[1]
+
+    return M0, write_w0s, read_w0s
+
+  def serialize(self, M1, write_w1s, read_w1s):
+    # Need to specify this as serialize is called after deserialize.
+    # Also, reuse_variables in rnn() is only invoked after the
+    # first timestep.
+    tf.get_variable_scope().reuse_variables()
+    M_bias, write_w_bias, read_w_bias = self.get_state_biases()
+
+    # Serialize state for next timestep
+    M1 = M1 - M_bias
+    s_read_w1s = []
+    for i in xrange(len(read_w1s)):
+      w1 = read_w1s[i]
+      w1 -= read_w_bias[i]
+      s_read_w1s.append(
+        tf.reshape(w1, [-1, self.mem_nrows]),
+      )
+    s_write_w1s = []
+    for i in xrange(len(write_w1s)):
+      w1 = write_w1s[i]
+      w1 -= write_w_bias[i]
+      s_write_w1s.append(
+        tf.reshape(w1, [-1, self.mem_nrows]),
+      )
+    sM1 = tf.reshape(M1, [-1, self.mem_nrows * self.mem_ncols])
+    new_state = tf.concat(1, [sM1] + s_read_w1s + s_write_w1s)
+
+    return new_state
+
+  def read(self, M0, read_w0s):
+    reads = []
+    for i in xrange(self.n_heads):
+      w0 = read_w0s[i]
+      r = tf.batch_matmul(tf.expand_dims(w0, 1), M0)
+      r = tf.squeeze(r, [1])
+      reads.append(r)
+    return reads
+
+  def write(self, M0, write_w0s, write_heads):
+    M1 = M0
+    write_w1s = []
+    for i in xrange(self.n_heads):
+      head = write_heads[i]
+      w0 = write_w0s[i]
+      # Important that we read from M0, as opposed to M1.
+      # We do not want our addressing mechanism to be
+      # affected by the write order.
+      w1 = NTMCell.address(M0, w0, head)
+      we = 1 - tf.batch_matmul(
+        tf.expand_dims(w1, 2),
+        tf.expand_dims(head["erase"], 1)
+      )  
+      Me = M1 * we
+      add = tf.batch_matmul(
+        tf.expand_dims(w1, 2),
+        tf.expand_dims(head["add"], 1),
+      )
+      M1 = Me + add
+      write_w1s.append(w1)
+
+    return M1, write_w1s
+
+  def read_weights(self, M0, read_w0s, read_heads):
+    read_w1s = []
+    # Compute read weights and serialize.
+    for i in xrange(self.n_heads): 
+      head = read_heads[i]
+      w0 = read_w0s[i]
+      # Should we change M0 to M1? Hmm...
+      w1 = NTMCell.address(M0, w0, head)
+      read_w1s.append(w1)
+    return read_w1s
+
   def __call__(self, inputs, state, scope=None):
     with tf.variable_scope(scope or type(self).__name__):
-      # Deserialize state from previous timestep.
-      M0 = tf.slice(
-        state,
-        [0, 0],
-        [-1, self.mem_nrows * self.mem_ncols],
-      )
-      M0 = tf.reshape(M0, [-1, self.mem_nrows, self.mem_ncols])
-      # Memory cells have a trainable bias.
-      # Add bias after deserializing, and subtract before serializing.
-      M_bias = tf.get_variable(
-        name="mem_bias",
-        shape=[self.mem_nrows, self.mem_ncols],
-        initializer=tf.random_uniform_initializer(0, 1),
-      )
-      M0 += M_bias
-
-      state_idx = self.mem_nrows * self.mem_ncols
-
-      read_w_bias = []
-      for i in xrange(self.n_heads):
-        read_w_bias.append(tf.get_variable(
-          name="read_bias" + str(i),
-          shape=[1, self.mem_nrows],
-          initializer=NTMCell.one_hot,
-        ))
-      write_w_bias = []
-      for i in xrange(self.n_heads):
-        write_w_bias.append(tf.get_variable(
-          name="write_bias" + str(i),
-          shape=[1, self.mem_nrows],
-          initializer=NTMCell.one_hot,
-        ))
-
-      # Deserialize read weights from previous time step.
-      read_w0s = []
-      for i in xrange(self.n_heads):
-        # Number of weights == Rows of memory matrix
-        w0 = tf.slice(state, [0, state_idx], [-1, self.mem_nrows])
-        w0 += read_w_bias[i]
-        read_w0s.append(w0)
-        state_idx += self.mem_nrows
-
-      # Do the same for write heads.
-      write_w0s = []
-      for _ in xrange(self.n_heads):
-        w0 = tf.slice(state, [0, state_idx], [-1, self.mem_nrows])
-        w0 += write_w_bias[i]
-        write_w0s.append(w0)
-        state_idx += self.mem_nrows
-
-      assert state_idx == state.get_shape()[1]
-
-      # Read
-      reads = []
-      for i in xrange(self.n_heads):
-        w0 = read_w0s[i]
-        r = tf.batch_matmul(tf.expand_dims(w0, 1), M0)
-        r = tf.squeeze(r, [1])
-        reads.append(r)
-
+      M0, write_w0s, read_w0s = self.deserialize(state)
+      # Read from memory
+      reads = self.read(M0, read_w0s)
       # Run inputs and read through controller.
       output, write_heads, read_heads = self.controller(inputs, reads)
-
-      M1 = M0
-
-      write_w1s = []
-      for i in xrange(self.n_heads):
-        head = write_heads[i]
-        w0 = write_w0s[i]
-        # Important that we read from M0, as opposed to M1.
-        # We do not want our addressing mechanism to be
-        # affected by the write order.
-        w1 = NTMCell.address(M0, w0, head)
-        we = 1 - tf.batch_matmul(
-          tf.expand_dims(w1, 2),
-          tf.expand_dims(head["erase"], 1)
-        )  
-        Me = M1 * we
-        add = tf.batch_matmul(
-          tf.expand_dims(w1, 2),
-          tf.expand_dims(head["add"], 1),
-        )
-        M1 = Me + add
-        write_w1s.append(w1)
-
-      read_w1s = []
-      # Compute read weights and serialize.
-      for i in xrange(self.n_heads): 
-        head = read_heads[i]
-        w0 = read_w0s[i]
-        # Should we change M0 to M1? Hmm...
-        w1 = NTMCell.address(M0, w0, head)
-        read_w1s.append(w1)
-         
-      # Serialize state for next timestep
-      M1 = M1 - M_bias
-      s_read_w1s = []
-      for i in xrange(len(read_w1s)):
-        w1 = read_w1s[i]
-        w1 -= read_w_bias[i]
-        s_read_w1s.append(
-          tf.reshape(w1, [-1, self.mem_nrows]),
-        )
-      s_write_w1s = []
-      for i in xrange(len(write_w1s)):
-        w1 = write_w1s[i]
-        w1 -= write_w_bias[i]
-        s_write_w1s.append(
-          tf.reshape(w1, [-1, self.mem_nrows]),
-        )
-      sM1 = tf.reshape(M1, [-1, self.mem_nrows * self.mem_ncols])
-      new_state = tf.concat(1, [sM1] + s_read_w1s + s_write_w1s)
-
+      # Perform Writes
+      M1, write_w1s = self.write(M0, write_w0s, write_heads)
+      # Compute new read weights
+      read_w1s = self.read_weights(M0, read_w0s, read_heads)
+      new_state = self.serialize(M1, write_w1s, read_w1s)
       return output, new_state
