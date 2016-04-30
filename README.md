@@ -8,7 +8,6 @@ TODO:
 
   Figure out why loss isn't decreasing to 0.
     content weight is very spread out.
-    Test gradient of rotate.
 
   Run on GPUs.
 
