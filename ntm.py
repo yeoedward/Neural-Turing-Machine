@@ -395,13 +395,13 @@ class NTMCell(rnn_cell.RNNCell):
 
     return M1, write_w1s
 
-  def read_weights(self, M1, read_w0s, read_heads):
+  def read_weights(self, M0, read_w0s, read_heads):
     read_w1s = []
     # Compute read weights
     for i in xrange(self.n_heads): 
       head = read_heads[i]
       w0 = read_w0s[i]
-      w1 = NTMCell.address(M1, w0, head)
+      w1 = NTMCell.address(M0, w0, head)
       read_w1s.append(w1)
     return read_w1s
 
@@ -412,9 +412,9 @@ class NTMCell(rnn_cell.RNNCell):
       reads = self.read(M0, read_w0s)
       # Run inputs and read through controller.
       output, write_heads, read_heads = self.controller(inputs, reads)
+      # Compute new read weights
+      read_w1s = self.read_weights(M0, read_w0s, read_heads)
       # Perform Writes
       M1, write_w1s = self.write(M0, write_w0s, write_heads)
-      # Compute new read weights
-      read_w1s = self.read_weights(M1, read_w0s, read_heads)
       new_state = self.serialize(M1, write_w1s, read_w1s)
       return output, new_state
