@@ -6,8 +6,7 @@ Paper: http://arxiv.org/abs/1410.5401
 
 TODO:
 
-  Improve learning:
-    We seem to be stuck in a local minima: predicting 0.5 for everything.
+  Tune params.
 
   Run on GPUs.
 

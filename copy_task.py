@@ -27,7 +27,7 @@ def bits_err_per_seq(out, expected, nsteps):
   rel_pred = tf.Print(
     rel_pred,
     [tf.slice(rel_pred, [0, 0, 0], [1, -1, 1])],
-    "rel_pred",
+    "predicted",
     summarize=20,
   )
   expected = tf.Print(
@@ -137,8 +137,10 @@ def train(
     n_input,
     max_steps,
     training_iters=1e8,
-    batch_size=1,
+    batch_size=128,
     display_step=10,
+    seq_len_min=1,
+    seq_len_max=20,
     ):
   sess = tf.Session()
   # Initializing the variables
@@ -152,7 +154,7 @@ def train(
     (xs, ys, nsteps) = gen_seq(
       nseqs=batch_size,
       max_steps=max_steps,
-      seq_len=random.randint(1, 5),
+      seq_len=random.randint(seq_len_min, seq_len_max),
       nbits=n_input,
     )
     # TODO Remove after testing
@@ -189,6 +191,9 @@ def train(
 
 # Training Parameters
 max_steps = 11
+seq_len_min = 1
+seq_len_max = 5
+batch_size = 1
 n_input = 3
 mem_nrow = 10
 mem_ncol = 5
@@ -204,4 +209,7 @@ if __name__ == "__main__":
     model=model,
     n_input=n_input,
     max_steps=max_steps,
+    seq_len_min=seq_len_min,
+    seq_len_max=seq_len_max,
+    batch_size=batch_size,
   )
