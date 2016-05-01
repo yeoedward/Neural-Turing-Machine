@@ -145,8 +145,8 @@ class NTMCell(rnn_cell.RNNCell):
 
   def get_params(self):
     n_first_layer = self.n_inputs + self.n_heads * self.mem_ncols
-    init_min = -1
-    init_max = 1
+    init_min = -0.1
+    init_max = 0.1
     weights = {
       "hidden": tf.get_variable(
         name="hidden_weight",
@@ -196,11 +196,11 @@ class NTMCell(rnn_cell.RNNCell):
   def head_outputs(weights, biases, hidden, i, is_write):
     key_name = NTMCell.var_name("key", i, is_write)
     key = tf.matmul(hidden, weights[key_name]) + biases[key_name]
-    key = tf.nn.relu(key)
+    key = tf.nn.softplus(key)
 
     key_str_name = NTMCell.var_name("key_str", i, is_write)
     key_str = tf.matmul(hidden, weights[key_str_name]) + biases[key_str_name]
-    key_str = tf.nn.relu(key_str)
+    key_str = tf.nn.softplus(key_str)
 
     interp_name = NTMCell.var_name("interp", i, is_write)
     interp = tf.matmul(hidden, weights[interp_name]) + biases[interp_name]
@@ -212,7 +212,7 @@ class NTMCell(rnn_cell.RNNCell):
 
     sharp_name = NTMCell.var_name("sharp", i, is_write)
     sharp = tf.matmul(hidden, weights[sharp_name]) + biases[sharp_name]
-    sharp = tf.nn.relu(sharp) + 1
+    sharp = tf.nn.relu6(sharp) + 1
 
     head = {
       "key": key,
