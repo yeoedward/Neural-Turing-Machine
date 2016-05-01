@@ -1,0 +1,118 @@
+\title{15-453 Final Report\\
+       Neural Turing Machine}
+\author{
+        Eddy Yeo\\
+                eyeo@andrew\\
+            \and
+        Yue Niu\\
+                TODO\\
+}
+\date{\today}
+
+\documentclass[12pt]{article}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We implement the Neural Turing Machine (Graves et al., 2014),
+which is a neural network attached to an explicit memory store.
+Given input and output sequences, it is able to learn small programs
+that are remarkably similar to those that a human programmer would
+write for a regular Turing Machine. Our implementation uses
+TensorFlow, a software library for building neural networks
+recently open sourced by Google.
+
+\end{abstract}
+
+\section{Introduction}
+
+The Turing Machine is arguably the most well-known model of computation.
+It is both sound and complete in an intuitive sense, meaning that it
+is not able to do ``impossible things", and is able to do anything
+that a reasonable model of computation could be expected to do.
+It is known that there are other models of computation with equivalent
+power -- Church's $\lambda$-calculus, $\mu$-recursive functions and
+Herbrand-G\"odel computability being the few we learned in class. What
+is perhaps the brilliance in the idea is the analogy to human computers.
+A Turing Machine is a human with pen and paper, where the finite state
+control is the mind of the human, the tape is the paper, and the pen is
+the head. It will become clear in the subsequent sections why we
+mention the pen as the head. This beautiful analogy has arisen once
+again, but this time in the field now known as Deep Learning.
+
+The recent increase in the availability of massive datasets and compute
+power through the rise of large internet companies and Moore's Law have
+revived a decades-old sub-field of computer science that has gone through
+multiple rebrandings, the latest one being Deep Learning. These two
+factors combined with various high profile performances of neural nets
+(AlphaGo comes to mind) have resulted in much renewed interest. Two
+innovations, explicit memory and attentional processes are found in
+the Neural Turing Machine.
+
+\paragraph{Outline}
+
+The remainder of this article is organized as follows.
+Section~\ref{sequence} gives a brief overview of recurrent
+neural networks and sequence learning.
+In section~\ref{architecture} we explain the architecture of the Neural
+Turing Machine. Section~\ref{tensorflow} talks a bit about the library
+support that we have. In section~\ref{implementation} we
+go into the technical details specific to our implementation.
+Section~\ref{results} showcases the capabilities of our implementation.
+We end off with our conclusion in section~\ref{conclusions}.
+
+\section{Recurrent Neural Networks and Sequence Learning}\label{sequence}
+
+Recurrent neural networks are neural networks that maintain state. They
+do this by feeding one of their outputs back in as an input in the next time
+step. They are known to be Turing-complete (Siegelmann and Sontag, 1992)
+if the weights are rational, and are even capable of hypercomputation
+if the weights are over the reals (Siegalmann and Sontag, 1994).
+
+They are very good at learning sequences especially if the lengths of
+the sequences are not fixed. In a standard feedforward network, the
+sequences would have to be encoded as a fixed-sized input, which is rather
+limiting. However, if we model sequences as a series of inputs over time,
+we can surpass this limitation. This is where recurrent neural networks come
+in.
+
+It turns out that learning sequences is hard when there are long-term
+dependencies in the sequence. The basic construction of a recurrent
+neural net, where the outputs of a unit are fed back into itself at the next
+time step, does not work well because we have to encode this dependency
+(over many time-steps) into a recurrent weight that will be applied at every
+time-step. A successful solution to this problem are Long Short Term Memory
+networks (LSTMs), that work by implementing gates for the recurrent 
+links in the network, allowing the network to learn when to let information
+pass through those parts. The Neural Turing Machine is a relatively new
+but competitive alternative to LSTMs, especially for various kinds of
+tasks.
+
+\section{Architecture}\label{architecture}
+
+The Neural Turing Machine is a neural network that is connected to a
+memory store where it can store and read information from.
+It is equipped with an addressing mechanism that allows it to focus its
+attention on a particular spot in memory. This addressing mechanism
+is analogous to the head of a turing machine. Its design is perhaps the
+chief contribution of this paper. In a way, we might say that the Neural
+Turing Machine is more about equipping the human with a pen,
+rather than a writing surface, which is more trivial in comparison.
+
+TODO Writes and reads are blurry
+
+\section{TensorFlow}\label{tensorflow}
+
+\section{Implementation}\label{implementation}
+
+\section{Results}\label{results}
+
+\section{Conclusions}\label{conclusions}
+We worked hard, and achieved very little.
+
+\bibliographystyle{abbrv}
+\bibliography{simple}
+
+\end{document}
+This is never printed
