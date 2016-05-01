@@ -54,6 +54,8 @@ the Neural Turing Machine.
 \paragraph{Outline}
 
 The purpose of this paper is to set the context for our implementation.
+Note that we assume some background knowledge of what a basic feedforward
+neural network is, just to avoid having to describe everything from scratch.
 The remainder of the paper is thus organized as follows.
 Section~\ref{sequence} gives a brief overview of recurrent
 neural networks and sequence learning.
@@ -237,11 +239,92 @@ it passes through our transformations.
 
 \section{Implementation}\label{implementation}
 
+We now go into the gory details of our implementation. The original paper left out
+a surprising amount of detail, which might understandably have been
+assumed to be background knowledge to those steeped in the field. Here are
+some of them. We also talk about our design choices.
+
+The task we set out to accomplish was for our Neural Turing Machine to learn
+how to copy a sequence. Meaning, we feed in inputs over $t$ timesteps, and then
+a special GO symbol, after which it will output the same inputs verbatim, entirely
+from memory. We emphasize that it does not have any access to the inputs during the output
+phase.
+
+\subsection{Inputs, Outputs and Sequence-to-Sequence Training}
+
+In terms of our experiment, we structured the training as follows. We
+construct input/output pairs, where each input consists of the input sequence,
+the GO symbol, and then padding characters of the same length as the input sequence.
+We need the padding characters as the neural network needs an input in order to
+produce an output. For some problems researchers feed in the output of the previous
+timestep as the input during the output phase. We could also just have padding
+characters be a special symbol. It was not clear to us which one was better, so
+we chose the latter due to simplicity of implementation. So for each input
+which involves the input sequence, the GO symbol, and the padding symbols,
+we will have an output of the same length of all their lengths summed up.
+Since we only care about the output sequence after the GO symbol,
+our loss function is only computed on that portion.
+
+\subsection{Read vs Write Heads}
+
+It was not clear to us whether a head is both a read and write head, or if we
+should have separate heads for both. We decided on separating the two types
+because it seems like that will improve the learning performance -- using the
+same weight vector for both reading and writing seems rather constraining.
+Our decision was validated by various blog posts online by those who have gone
+down the same path before, although there was at least one person who went down
+the other path. Hardly the most reliable source of information, but having
+no expertise in this area, we found this highly encouraging. We used one read
+and write head for our task, although our implementation is implemented for the
+general case.
+
+\subsection{Controller}
+
+One of our primary goals was to see the neural net learn programs that are
+similar to those a human would write for a turing machine. As such, we chose
+to use a feedfoward controller because of its internal transparency. We want
+to be able to track of all its state changes.
+
+We used a single layer of $100$ hidden units, with the rectified linear unit (ReLU)
+as their activation functions. This activation function has been shown to work
+well despite its simplicitly, and also allow efficient training.
+In his Deep Learning textbook (Bengio, 2016)\cite{Goodfellow-et-al-2016-Book}, Yoshua Bengio
+mentions it as a good default for a hidden unit. Note that the sigmoid unit is now
+commonly avoided as a hidden unit due to its gradient rapidly vanishing
+as its output approaches either $0$ or $1$, making it less trainable by gradient
+descent. It is still used though in output layers if the range needs to be between
+$0$ and $1$.
+
+The inputs for the current time step and read vectors are densely connected to the
+hidden layer. The hidden layer is densely connected to the output layer, where the
+predictions for the current time step are made, and the addressing parameter layer,
+for internal use by the addressing mechanism.
+
+For our addressing parameter layer, we used various activation functions depending
+on what the parameter's value should fall between. Details can be found in
+the original paper and the code.
+
+We initialized most of our weights distributed uniformly between $(-0.1, 0.1)$.
+It should be noted that a lot of these choices were experimentally determined -- we 
+tried many of them and saw what worked.
 
 \section{Results}\label{results}
 
+TODO Insert pretty bitmaps.
+
 \section{Conclusions}\label{conclusions}
-We worked hard, and achieved very little.
+
+We have reproduced the published results on a smaller problem size for the
+copy task. We see that the neural net has successfully learned how to
+use its addressing mechanism and memory store very well, arguably to the
+same level as a human programmer with a turing machine, at least for this
+particular task. Learning to program also allowed it to generalize
+well on sequences of far greater length.
+
+TODO Kolmogorov-Complexity.
+
+Accessibility. Support infrastructure and software. Multi-disciplinary.
+Empirical field. A lot of intuition. Trial and error. Theory needed.
 
 \bibliographystyle{abbrv}
 \bibliography{report}
