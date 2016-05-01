@@ -10,12 +10,13 @@
 \date{\today}
 
 \documentclass[12pt]{article}
+\usepackage{amsmath}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-We implement the Neural Turing Machine (Graves et al., 2014),
+We implement the Neural Turing Machine (Graves et al., 2014)\cite{DBLP:journals/corr/GravesWD14},
 which is a neural network attached to an explicit memory store.
 Given input and output sequences, it is able to learn small programs
 that are remarkably similar to those that a human programmer would
@@ -52,7 +53,8 @@ the Neural Turing Machine.
 
 \paragraph{Outline}
 
-The remainder of this article is organized as follows.
+The purpose of this paper is to set the context for our implementation.
+The remainder of the paper is thus organized as follows.
 Section~\ref{sequence} gives a brief overview of recurrent
 neural networks and sequence learning.
 In section~\ref{architecture} we explain the architecture of the Neural
@@ -66,9 +68,9 @@ We end off with our conclusion in section~\ref{conclusions}.
 
 Recurrent neural networks are neural networks that maintain state. They
 do this by feeding one of their outputs back in as an input in the next time
-step. They are known to be Turing-complete (Siegelmann and Sontag, 1992)
+step. They are known to be Turing-complete (Siegelmann and Sontag, 1992)\cite{Siegelmann:1992:CPN:130385.130432}
 if the weights are rational, and are even capable of hypercomputation
-if the weights are over the reals (Siegalmann and Sontag, 1994).
+if the weights are over the reals (Siegalmann and Sontag, 1994)\cite{SIEGELMANN1994331}.
 
 They are very good at learning sequences especially if the lengths of
 the sequences are not fixed. In a standard feedforward network, the
@@ -86,8 +88,8 @@ time-step. A successful solution to this problem are Long Short Term Memory
 networks (LSTMs), that work by implementing gates for the recurrent 
 links in the network, allowing the network to learn when to let information
 pass through those parts. The Neural Turing Machine is a relatively new
-but competitive alternative to LSTMs, especially for various kinds of
-tasks.
+but competitive design, especially for various kinds of tasks, as we
+shall see.
 
 \section{Architecture}\label{architecture}
 
@@ -100,11 +102,141 @@ chief contribution of this paper. In a way, we might say that the Neural
 Turing Machine is more about equipping the human with a pen,
 rather than a writing surface, which is more trivial in comparison.
 
-TODO Writes and reads are blurry
+It is composed of three main components: the controller, the heads and 
+the memory bank. The controller is just a regular neural network that will
+both learn how to use the memory infrastructure via the heads that
+it is provided with, and also predict the outputs
+from the inputs and previous state. It can be a feedfoward network or
+even an LSTM network. A feedforward network allows us to interprete
+what the neural network is doing more easily, as any state it
+stores has to be via one of the heads, while an LSTM network has
+its own memory, which Graves likens to having registers in a computer to
+augment its use of RAM.
+
+The memory bank is just a two dimensional matrix that keeps state from
+any output to it from one time step to the next, where it is used
+as input (via a read head). Each column is a cell, and the number of
+rows is the number of cells.
+
+The head is a more
+complicated addressing mechanism that chooses where in the memory matrix
+to direct its output (i.e. store state). A key feature is that any writes
+and reads are what Graves calls ``blurry", meaning that the head interacts
+with the entire memory matrix at once, but is able to control the degree
+of ``focus". This ensures that it remains differentiable, allowing it
+to be trained with the regular gradient descent algorithms. A read at time
+step $t$, which is used as one of the inputs along with the actual $t^{th}$
+input, is just a weighted sum of the memory cells over all the rows:
+
+$$
+\mathbf{r}_t \leftarrow \sum_i w_t(i) \mathbf{M}_t(i)
+$$
+
+where $\sum_i w_t(i) = 1$ and $0 \le w_t(i) \le 1, \forall i$. The writing
+mechanism follows a similar procedure, but with additional
+details because it is allowed an additional erase step. The most critical part
+of this whole architecture is for the network to be able to decide on the weight
+vectors $\mathbf{w}_t$ intelligently. This brings us to the addressing mechanism.
+
+\subsection{Addressing Mechanisms}
+
+The addressing mechanism can be broadly divided into three main phases.
+The first one is content-based focusing, the second is interpolating across
+time steps, and the third is rotation. Each phase generates
+a weight vector, with the latter two modifying the previous weight vectors generated
+by the previous phase. The full details can be found in Grave's paper, but we
+will go through them at a high level here.
+
+The content-based mechanism allows the neural network to search for specific
+content over the different cells. It does this by generating a key vector
+$\mathbf{k}_t$, and then computing similarity scores over all the cells. It
+then applies the softmax function to get the content weight vector. The
+softmax function is also known as the normalized exponential, and is a 
+good function to generate a probability distribution over different categories,
+which is essentially what our weight vector is.
+
+The interpolation phase allows the network to decide whether we want to use the weight
+vector from the previous time step, or to use the new one freshly generated by our
+content-based mechanism. This is essential to be able to iterate through tape cells,
+as the location of our head depends on only its previous location and not its
+content. The equation is as follows. Note that the interpolation factor $g_t$
+lies between $0$ and $1$ and is generated by our controller. $\mathbf{w}^c_t$ is
+the vector computed by our content-based mechanism.
+
+$$
+\mathbf{w}^g_t \leftarrow g_t\mathbf{w}^c_t + (1-g_t)\mathbf{w}_{t-1}.
+$$
+
+The last phase implements the rotation mechanism, which allows our network to
+decide to shift the head left and right. It does this through circular convolution:
+
+$$
+\widetilde{w}_t(i) \leftarrow \sum_{j=0}^{N-1}w^g_t(j) s_t(i-j)
+$$
+
+The index of the shift vector $s_t$ is computed modulo the number of cells (rows)
+in our memory matrix, $N$. The length of the shift vector is implicitly $N$, but
+can be implemented with only the length of our shift width (the rest of the
+values are implicitly zeroes). For example, if we
+only allow shifts of $-1, 0, 1$, which has a shift width of $3$,
+then the shift vector has length 3, and if
+$i - (j - 1) \mod N$ is out of this range we just use $s_t(i-(j-1)) = 0$. Note
+we have to use $j-1$ here instead of $j$ because our shift starts from $-1$. The
+whole point of this operation is simply to rotate $\mathbf{w}^g_t$. The probability
+distribution of the values in $s_t$ controls how much blurring occurs during the
+rotation.
+
+Note that throughout all these phases, care is taken to allow the neural net
+to control the amount of blurring (or ``sharpening").
+This is done by exponentiating and then
+normalizing the weight vector between some of the phases, by a factor that is also
+decided on by the controller. Once again, full details can be found in the original
+paper.
 
 \section{TensorFlow}\label{tensorflow}
 
+Having described the basic network architecture, we now have to translate
+these high-level descriptions into something that actually runs. There
+are various considerations here. Firstly, we would like the code to 
+run correctly. Neural networks involve a lot of floating point operations
+over many time steps, where considerations of numerical stability
+are paramount. Secondly, we want the code to run efficiently.
+This means using matrix or at least vectorized operations in order to to
+leverage highly optimized algorithms that have been developed over the years.
+We also want the code to be somewhat hardware aware, to allow it to
+exploit properties of the underlying computing system. The third consideration
+is development time. Until now we have not really talked about the training
+algorithms used, for example backpropagation. These algorithms involve knowing the
+gradients of the operations we perform on the data, and ideally we do not want
+to compute them by hand, especially if we are doing something new. Also,
+we probably want our implementation to be able to run on GPU clusters, for instance,
+without much modification. This is where the libraries come in.
+
+The three big libraries in this area Torch, Theano and Tensorflow. Torch is a framework
+based on the Lua programming language and is actively maintained by Facebook AI. Theano
+is a library based on Python and was originally developed by Yoshua Bengio's lab
+at the Universit\'e de Montr\'eal. Tensorflow is also based on Python and is still
+being actively developed by Google. We decided to use TensorFlow as we are comfortable
+with Python and it seems to be well supported online by Google engineers
+who are very responsive. The details can be found on the webpage and the white paper
+\cite{tensorflow2015-whitepaper}. We will go over the basic details at a high level.
+
+When we use Tensorflow, we are running python code that generates a computation
+graph of operations. This is similar to the way futures work, in the sense
+that the python code does not actually run any operations but rather
+manipulates symbolic representations of these operations. After generating
+our computation graph, we instruct the framework to actually run the computations.
+This graph will be shipped off to a runtime written in a more efficient lower level
+language and executed. The framework takes care of all the systems-level details.
+Common operations and variants of the backpropagation algorithms are already implemented,
+along with automatic gradient calculations. This allows us to worry only about the
+high level details like neural network architecture, and greatly reduces our cognitive
+load and development time. We should note that the operations in the computation graph
+operate on tensors, which are $n$-dimentional arrays that represent our data as
+it passes through our transformations.
+
 \section{Implementation}\label{implementation}
+
 
 \section{Results}\label{results}
 
@@ -112,7 +244,7 @@ TODO Writes and reads are blurry
 We worked hard, and achieved very little.
 
 \bibliographystyle{abbrv}
-\bibliography{simple}
+\bibliography{report}
 
 \end{document}
 This is never printed
