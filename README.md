@@ -8,6 +8,8 @@ TODO:
 
   Tune params.
 
+  Write report.
+
   Run on GPUs.
 
 Training details:
@@ -28,12 +30,18 @@ Build user op in tensorflow/tensorflow/core/user_ops/:
 
 bazel build -c opt //tensorflow/core/user_ops:rotate.so
 
-Upgrade to latest Tensorflow v0.8 (Pip automatically uses v0.7+):
+Saved models:
 
-sudo pip install --upgrade https://storage.googleapis.com/tensorflow/mac/tensorflow-0.8.0-py2-none-any.whl
+  We copy the source code too to ensure that the checkpoint file is
+    compatible with the model. There is probably (hopefully) a better way
+    to do this.
 
-Citations:
+Resources:
 
-Some RNN Code was adapted from:
+https://www.tensorflow.org/
 
-https://github.com/aymericdamien/TensorFlow-Examples/tree/master/examples/3%20-%20Neural%20Networks
+https://medium.com/snips-ai/ntm-lasagne-a-library-for-neural-turing-machines-in-lasagne-2cdce6837315#.17cngz3vj
+
+http://awawfumin.blogspot.com/2015/03/neural-turing-machines-implementation.html
+
+https://blog.wtf.sg/2015/01/15/neural-turing-machines-faq/#more-843
