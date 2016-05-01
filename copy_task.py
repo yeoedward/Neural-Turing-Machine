@@ -69,7 +69,8 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
   outputs, _ = rnn.dynamic_rnn(
       ntm_cell,
       X,
-      initial_state=istate,
+      #initial_state=istate,
+      dtype=tf.float32,
       sequence_length=nsteps,
   )
   # TODO Remove after testing
@@ -154,7 +155,6 @@ def train(
       seq_len=random.randint(1, 5),
       nbits=n_input,
     )
-    istate = np.zeros((batch_size, mem_nrow*mem_ncol + 2*mem_nrow))
     # TODO Remove after testing
     #istate = np.ones((batch_size, 600))
     sess.run(
@@ -162,7 +162,7 @@ def train(
       feed_dict={
         model['x']: xs,
         model['y']: ys,
-        model['istate']: istate,
+        #model['istate']: istate,
         model['steps']: nsteps,
       },
     )
@@ -172,7 +172,7 @@ def train(
           feed_dict={
             model['x']: xs,
             model['y']: ys,
-            model['istate']: istate,
+            #model['istate']: istate,
             model['steps']: nsteps,
           },
         )

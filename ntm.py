@@ -39,6 +39,19 @@ class NTMCell(rnn_cell.RNNCell):
   def output_size(self):
     return self.n_outputs
 
+  def zero_state(self, batch_size, dtype):
+    M_bias = tf.random_uniform(
+      tf.pack([batch_size, self.mem_nrows * self.mem_ncols]),
+      0, 0.1,
+    )
+    indices = tf.zeros(tf.expand_dims(batch_size, 0), dtype=tf.int64)
+    weight_biases = [
+      tf.one_hot(indices, self.mem_nrows)
+      for _ in xrange(2*self.n_heads)
+    ]
+    state_biases = tf.concat(1, [M_bias] + weight_biases)
+    return state_biases
+
   @staticmethod
   def var_name(v, i, is_write):
     prefix = "write_" if is_write else "read_"
@@ -97,7 +110,7 @@ class NTMCell(rnn_cell.RNNCell):
       weights[sharp_name] =  tf.get_variable(
         name=sharp_name + "_weight",
         shape=[self.n_hidden, 1],
-        initializer=tf.random_uniform_initializer(init_min, init_max),
+        initializer=tf.random_uniform_initializer(-0.1, 0.1),
       )
       biases[sharp_name] = tf.get_variable(
         name=sharp_name + "_bias",
@@ -132,8 +145,8 @@ class NTMCell(rnn_cell.RNNCell):
 
   def get_params(self):
     n_first_layer = self.n_inputs + self.n_heads * self.mem_ncols
-    init_min = -0.1
-    init_max = 0.1
+    init_min = -1
+    init_max = 1
     weights = {
       "hidden": tf.get_variable(
         name="hidden_weight",
@@ -183,7 +196,7 @@ class NTMCell(rnn_cell.RNNCell):
   def head_outputs(weights, biases, hidden, i, is_write):
     key_name = NTMCell.var_name("key", i, is_write)
     key = tf.matmul(hidden, weights[key_name]) + biases[key_name]
-    key = tf.nn.relu(key)
+    key = tf.nn.softplus(key)
 
     key_str_name = NTMCell.var_name("key_str", i, is_write)
     key_str = tf.matmul(hidden, weights[key_str_name]) + biases[key_str_name]
@@ -226,6 +239,7 @@ class NTMCell(rnn_cell.RNNCell):
   def controller(self, inputs, reads):
     weights, biases = self.get_params()
     first_layer = tf.concat(1, [inputs] + reads)
+    #first_layer = tf.Print(first_layer, [first_layer], "first_layer", summarize=20)
     hidden = tf.matmul(first_layer, weights["hidden"]) + biases["hidden"]
     hidden = tf.nn.relu(hidden)
 
@@ -262,43 +276,23 @@ class NTMCell(rnn_cell.RNNCell):
     wg = head["interp"] * wc + (1 - head["interp"]) * w0
     ws = rotate.ntm_rotate(wg, head["shift"])
     ws_pow = tf.pow(ws, head["sharp"])
+
+    #ws_pow = tf.Print(ws_pow, [w0], "w0", summarize=1000)
+    #ws_pow = tf.Print(ws_pow, [key], "key", summarize=1000)
+    #ws_pow = tf.Print(ws_pow, [head["key_str"]], "key_str", summarize=1000)
+    #ws_pow = tf.Print(ws_pow, [wc], "wc", summarize=1000)
+    #ws_pow = tf.Print(ws_pow, [head["interp"]], "interp", summarize=1000)
+    #ws_pow = tf.Print(ws_pow, [head["shift"]], "shift", summarize=1000)
+    #ws_pow = tf.Print(ws_pow, [wg], "wg", summarize=1000)
+    #ws_pow = tf.Print(ws_pow, [head["sharp"]], "sharp", summarize=1000)
+    #ws_pow = tf.Print(ws_pow, [ws_pow], "ws_pow", summarize=1000)
+
     w1 = ws_pow / tf.reduce_sum(ws_pow, 1, keep_dims=True)
+
 
     return w1
 
-  @staticmethod
-  def one_hot(shape, dtype):
-    indices = tf.zeros([shape[0]], dtype=tf.int64)
-    return tf.one_hot(indices, shape[1], 1, 0)
-
-  def get_state_biases(self):
-    # States have a trainable bias.
-    # Add bias after deserializing, and subtract before serializing.
-    M_bias = tf.get_variable(
-      name="mem_bias",
-      shape=[self.mem_nrows, self.mem_ncols],
-      initializer=tf.random_uniform_initializer(0, 1),
-    )
-    read_w_bias = []
-    for i in xrange(self.n_heads):
-      read_w_bias.append(tf.get_variable(
-        name="read_bias" + str(i),
-        shape=[1, self.mem_nrows],
-        initializer=NTMCell.one_hot,
-      ))
-    write_w_bias = []
-    for i in xrange(self.n_heads):
-      write_w_bias.append(tf.get_variable(
-        name="write_bias" + str(i),
-        shape=[1, self.mem_nrows],
-        initializer=NTMCell.one_hot,
-      ))
-
-    return M_bias, write_w_bias, read_w_bias
-
   def deserialize(self, state):
-    M_bias, write_w_bias, read_w_bias = self.get_state_biases()
-
     # Deserialize state from previous timestep.
     M0 = tf.slice(
       state,
@@ -306,7 +300,6 @@ class NTMCell(rnn_cell.RNNCell):
       [-1, self.mem_nrows * self.mem_ncols],
     )
     M0 = tf.reshape(M0, [-1, self.mem_nrows, self.mem_ncols])
-    M0 += M_bias
 
     state_idx = self.mem_nrows * self.mem_ncols
 
@@ -315,7 +308,6 @@ class NTMCell(rnn_cell.RNNCell):
     for i in xrange(self.n_heads):
       # Number of weights == Rows of memory matrix
       w0 = tf.slice(state, [0, state_idx], [-1, self.mem_nrows])
-      w0 += read_w_bias[i]
       read_w0s.append(w0)
       state_idx += self.mem_nrows
 
@@ -323,34 +315,27 @@ class NTMCell(rnn_cell.RNNCell):
     write_w0s = []
     for _ in xrange(self.n_heads):
       w0 = tf.slice(state, [0, state_idx], [-1, self.mem_nrows])
-      w0 += write_w_bias[i]
       write_w0s.append(w0)
       state_idx += self.mem_nrows
 
-    assert state_idx == state.get_shape()[1]
+    tf.Assert(
+      tf.equal(state_idx, tf.shape(state)[1]),
+      [tf.shape(state)],
+    )
 
     return M0, write_w0s, read_w0s
 
   def serialize(self, M1, write_w1s, read_w1s):
-    # Need to specify this as serialize is called after deserialize.
-    # Also, reuse_variables in rnn() is only invoked after the
-    # first timestep.
-    tf.get_variable_scope().reuse_variables()
-    M_bias, write_w_bias, read_w_bias = self.get_state_biases()
-
     # Serialize state for next timestep
-    M1 = M1 - M_bias
     s_read_w1s = []
     for i in xrange(len(read_w1s)):
       w1 = read_w1s[i]
-      w1 -= read_w_bias[i]
       s_read_w1s.append(
         tf.reshape(w1, [-1, self.mem_nrows]),
       )
     s_write_w1s = []
     for i in xrange(len(write_w1s)):
       w1 = write_w1s[i]
-      w1 -= write_w_bias[i]
       s_write_w1s.append(
         tf.reshape(w1, [-1, self.mem_nrows]),
       )
