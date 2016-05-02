@@ -10,7 +10,8 @@
 \date{\today}
 
 \documentclass[12pt]{article}
-\usepackage{amsmath}
+\usepackage{amsmath, graphicx}
+\graphicspath{{../images/copy_task/}}
 
 \begin{document}
 \maketitle
@@ -214,7 +215,7 @@ to compute them by hand, especially if we are doing something new. Also,
 we probably want our implementation to be able to run on GPU clusters, for instance,
 without much modification. This is where the libraries come in.
 
-The three big libraries in this area Torch, Theano and Tensorflow. Torch is a framework
+The three big libraries in this area are Torch, Theano and Tensorflow. Torch is a framework
 based on the Lua programming language and is actively maintained by Facebook AI. Theano
 is a library based on Python and was originally developed by Yoshua Bengio's lab
 at the Universit\'e de Montr\'eal. Tensorflow is also based on Python and is still
@@ -265,14 +266,9 @@ our loss function is only computed on that portion.
 
 It was not clear to us whether a head is both a read and write head, or if we
 should have separate heads for both. We decided on separating the two types
-because it seems like that will improve the learning performance -- using the
-same weight vector for both reading and writing seems rather constraining.
-Our decision was validated by various blog posts online by those who have gone
-down the same path before, although there was at least one person who went down
-the other path. Hardly the most reliable source of information, but having
-no expertise in this area, we found this highly encouraging. We used one read
-and write head for our task, although our implementation is implemented for the
-general case.
+because that makes our implementation more general.
+Our current implementation assumes an equal number of read and write heads,
+although it should be relatively simple to change this if necessary.
 
 \subsection{Controller}
 
@@ -291,7 +287,8 @@ as its output approaches either $0$ or $1$, making it less trainable by gradient
 descent. It is still used though in output layers if the range needs to be between
 $0$ and $1$.
 
-The inputs for the current time step and read vectors are densely connected to the
+The inputs for the current time step and read vectors (containing state read off
+memory from the previous time step) are densely connected to the
 hidden layer. The hidden layer is densely connected to the output layer, where the
 predictions for the current time step are made, and the addressing parameter layer,
 for internal use by the addressing mechanism.
@@ -306,7 +303,70 @@ tried many of them and saw what worked.
 
 \section{Results}\label{results}
 
-TODO Insert pretty bitmaps.
+\subsection{Copy Task}
+
+Our first task was to train the Neural Turing Machine to reproduce a sequence
+completely from memory. As described in the previous section, we first feed in
+an input sequence, a special GO symbol and and then special padding symbols,
+and we expect it to reproduce the input sequence after the GO symbol.
+A simple feedforward network without any memory store will fail miserably
+here as each padding symbol would just produce the same output.
+We train it on sequences of random length between 1 to 5, where each character
+in the sequence is a bit vector of width 3. Note that the GO symbol is just the
+bit vector corresponding to $1$ and the padding symbol is just the bit vector
+corresponding to $0$. We used the average cross-entropy
+of the output sequence after the GO symbol as our loss. We gave the neural
+network a memory matrix of size $50 \times 5$, meaning 50 cells, each cell being
+able to store 5 bits. After 4100 iterations, at which the training loss was
+consistently close to 0, we ran the resulting neural network on several test
+sequences of varying length. We found that the neural network generalized
+extremely well to sequences that were almost ten times the maximum length
+it had seen during training. This is a result of having learned the correct
+``program". Figure 1 shows the input and output vectors for a test sequence
+of length $40$. The columns represent the bitvectors and the rows span
+the sequence length. Each square is colored with a shade closer to red if the
+bit is closer to 1, and closer to blue if the bit is closer to 0.
+We see perfect recall the length of 40. When we get to 50, and we should
+note that this is at the limit of the memory store that the neural network
+is equipped with, we see from figure 2 that there are some minor corruptions
+in the output.
+
+\begin{figure}[h]
+\includegraphics[width=\textwidth]{inputs40}
+\includegraphics[width=\textwidth]{outputs40}
+\caption{Sequence length of 40 (input on top)}
+\includegraphics[width=\textwidth]{inputs50}
+\includegraphics[width=\textwidth]{outputs50}
+\caption{Sequence length of 50 (input on top)}
+\end{figure}
+
+Looking at the weight vectors at each time step, we are able to track
+the head movements of the Neural Turing Machine. We see that the neural net has
+implemented the ``obvious" program that solves
+this problem. For each input, write it into the memory store and advance one cell.
+When the
+GO symbol is seen, start iterating over the saved input and output it.
+Figure 3 below shows exactly this pattern. Each row represents the tape
+at a specific time step, spanning over all time steps. The write head is seen to
+be iterating until it has written 30 characters. Meanwhile the read head stays
+put, and when 30 characters are seen it starts iterating. We chose this example
+to show clearly that while the heads can approximate a turing machine head
+pretty well when the neural net brings it into sharp focus, as in the read head's case,
+the ``blurry" nature of the heads is still evident from the write head. We
+see it dissipate into nothingness when it has done its job. Also note that
+the head's rotation mechanism can wrap-around to the other end of the tape, 
+as shown in the read head's movement.
+
+
+\begin{figure}[h]
+\includegraphics[width=0.5\textwidth]{read_head}
+\includegraphics[width=0.5\textwidth]{write_head}
+\caption{Head movements for sequence length of 30 (read head on left)}
+\end{figure}
+
+\subsection{Repeat Copy Task}
+
+TODO
 
 \section{Conclusions}\label{conclusions}
 
