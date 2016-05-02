@@ -30,6 +30,8 @@ Build user op in tensorflow/tensorflow/core/user_ops/:
 
 bazel build -c opt //tensorflow/core/user_ops:rotate.so
 
+Note that if you symlink rotate.cc and rotate_grad.cc and then build it, it becomes a regular file. 
+
 Saved models:
 
   We copy the source code too to ensure that the checkpoint file is
