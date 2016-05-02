@@ -47,9 +47,6 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
   # Batch size, max_steps, n_input
   x = tf.placeholder("float", [None, None, n_input])
   y = tf.placeholder("float", [None, None, n_input])
-  istate = tf.placeholder("float", [None, mem_nrow*mem_ncol + 2*mem_nrow])
-  # TODO Remove after testing.
-  #istate = tf.placeholder("float", [None, 600])
   nsteps = tf.placeholder("int32")
   ntm_cell = ntm.NTMCell(
       n_inputs=n_input,
@@ -59,55 +56,37 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
       mem_ncols=mem_ncol,
       n_heads=1,
   )
-  X = x
-  # TODO Remove after testing.
-  #lstm_cell = rnn_cell.BasicLSTMCell(
-  #  num_units=100,
-  #)
-  #multi_cell = rnn_cell.MultiRNNCell([lstm_cell] * 3)
-  #hidden = tf.Variable(tf.random_normal([n_input, 100], 0.1))
-  #X = tf.reshape(X, [-1, n_input])
-  #X = tf.nn.tanh(tf.matmul(X, hidden))
-  #X = tf.reshape(X, [-1, max_steps, 100])
   outputs, _ = rnn.dynamic_rnn(
       ntm_cell,
-      X,
-      #initial_state=istate,
+      x,
       dtype=tf.float32,
       sequence_length=nsteps,
   )
-  # TODO Remove after testing
-  #hidden2 = tf.Variable(tf.random_normal([100, n_input], 0.1))
-  #outputs = tf.reshape(outputs, [-1, 100])
-  #outputs = tf.matmul(outputs, hidden2)
-  #outputs = tf.reshape(outputs, [-1, max_steps, n_input])
 
-  # Loss functions
+  # Loss measures
   cost = var_seq_loss(outputs, y, nsteps)
+  err = bits_err_per_seq(outputs, y, nsteps)
+
   # Optimizer params as described in paper.
   opt = tf.train.RMSPropOptimizer(
     learning_rate=1e-4,
     momentum=0.9,
   )
-  gvs = opt.compute_gradients(cost)
   # Gradient clipping as described in paper.
+  gvs = opt.compute_gradients(cost)
   clipped_gvs = []
   for g, v in gvs:
-    # TODO Remove after testing
-    #g = tf.Print(g, [g], v.name)
     clipped_gvs.append((tf.clip_by_value(g, -10, 10), v))
   optimizer = opt.apply_gradients(clipped_gvs)
-  err = bits_err_per_seq(outputs, y, nsteps)
 
   return {
-    'pred': predict(outputs, nsteps),
-    'cost': cost,
-    'optimizer': optimizer,
     'x': x,
     'y': y,
-    'istate': istate,
     'steps': nsteps,
+    'cost': cost,
     'err': err,
+    'optimizer': optimizer,
+    'pred': predict(outputs, nsteps),
   }
 
 def gen_seq(nseqs, max_steps, seq_len, nbits):
@@ -160,8 +139,6 @@ def train(
       seq_len=random.randint(seq_len_min, seq_len_max),
       nbits=n_input,
     )
-    # TODO Remove after testing
-    #istate = np.ones((batch_size, 600))
     sess.run(
       model['optimizer'],
       feed_dict={
@@ -190,6 +167,7 @@ def train(
       print "Model saved in file: %s" % save_path
 
     step += 1
+
   print "Optimization Finished!"
 
 # Training Parameters
