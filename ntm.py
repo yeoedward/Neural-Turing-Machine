@@ -349,7 +349,7 @@ class NTMCell(rnn_cell.RNNCell):
     for i in xrange(self.n_heads):
       w0 = read_w0s[i]
       # For analysis
-      w0 = tf.Print(w0, [w0], "read", summarize=1000)
+      #w0 = tf.Print(w0, [w0], "read", summarize=1000)
       r = tf.batch_matmul(tf.expand_dims(w0, 1), M0)
       r = tf.squeeze(r, [1])
       reads.append(r)
@@ -362,7 +362,7 @@ class NTMCell(rnn_cell.RNNCell):
       w0 = write_w0s[i]
       w1 = NTMCell.address(M0, w0, head)
       # For analysis
-      w1 = tf.Print(w1, [w1], "write", summarize=1000)
+      #w1 = tf.Print(w1, [w1], "write", summarize=1000)
       write_w1s.append(w1)
 
     M1 = M0
