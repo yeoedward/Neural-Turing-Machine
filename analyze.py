@@ -20,14 +20,14 @@ for seq_len in test_lens:
 saver = tf.train.Saver()
 with tf.Session() as sess:
   # Load saved model
-  saver.restore(sess, "copy_task_checkpoints/model41000.ckpt")
-  for i in xrange(len(inputs)):
+  saver.restore(sess, "checkpoints/copy_task/model41000.ckpt")
+  for i in [2]:#xrange(len(inputs)):
     output = sess.run(model["pred"], feed_dict={
       model['x']: inputs[i],
       model['steps']: nsteps[i],
     })
-    seq_len = test_lens[i]
-    plt.matshow(np.transpose(inputs[i][0][:seq_len]))
-    plt.savefig('images/inputs%d.png' % seq_len, dpi=100)
-    plt.matshow(np.transpose(output[0]))
-    plt.savefig('images/outputs%d.png' % seq_len, dpi=100)
+    #seq_len = test_lens[i]
+    #plt.matshow(np.transpose(inputs[i][0][:seq_len]))
+    #plt.savefig('images/inputs%d.png' % seq_len, dpi=100)
+    #plt.matshow(np.transpose(output[0]))
+    #plt.savefig('images/outputs%d.png' % seq_len, dpi=100)
