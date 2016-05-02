@@ -244,20 +244,14 @@ a surprising amount of detail, which might understandably have been
 assumed to be background knowledge to those steeped in the field. Here are
 some of them. We also talk about our design choices.
 
-The task we set out to accomplish was for our Neural Turing Machine to learn
-how to copy a sequence. Meaning, we feed in inputs over $t$ timesteps, and then
-a special GO symbol, after which it will output the same inputs verbatim, entirely
-from memory. We emphasize that it does not have any access to the inputs during the output
-phase.
-
 \subsection{Inputs, Outputs and Sequence-to-Sequence Training}
 
 In terms of our experiment, we structured the training as follows. We
 construct inputs-over-time/outputs-over-time pairs, where each inputs-over-time
 is a sequence of inputs, the GO symbol, and then padding characters of the same length as the
-input sequence. We need the padding characters as the neural network needs an input in order to
-produce an output. We need some way of cajoling it to produce outputs after we are done
-feeding our input sequence in. For some problems researchers feed in the output of the previous
+expected output sequence. We need the padding characters as the neural network needs an input in order to
+produce an output. (i.e. we need to cajole it to produce outputs after we are done
+feeding our input sequence in). For some problems researchers feed in the output of the previous
 timestep as the input of the current time step during the output phase,
 instead of the padding character.
 It was not clear to us which one was better, so
@@ -289,7 +283,7 @@ to be able to track of all its state changes.
 
 We used a single layer of $100$ hidden units, with the rectified linear unit (ReLU)
 as their activation functions. This activation function has been shown to work
-well despite its simplicitly, and also allow efficient training.
+well despite its simplicitly, and also allows efficient training.
 In his Deep Learning textbook (Bengio, 2016)\cite{Goodfellow-et-al-2016-Book}, Yoshua Bengio
 mentions it as a good default for a hidden unit. Note that the sigmoid unit is now
 commonly avoided as a hidden unit due to its gradient rapidly vanishing

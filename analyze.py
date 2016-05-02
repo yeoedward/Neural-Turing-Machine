@@ -7,7 +7,7 @@ from ntm import NTMCell
 saver = tf.train.Saver()
 with tf.Session() as sess:
   # Load saved model
-  saver.restore(sess, "checkpoints/model4000.ckpt")
+  saver.restore(sess, "test/model41000.ckpt")
   # 2675435 in binary.
   xs = [[
     [0, 1, 0],
