@@ -253,15 +253,17 @@ phase.
 \subsection{Inputs, Outputs and Sequence-to-Sequence Training}
 
 In terms of our experiment, we structured the training as follows. We
-construct input/output pairs, where each input consists of the input sequence,
-the GO symbol, and then padding characters of the same length as the input sequence.
-We need the padding characters as the neural network needs an input in order to
-produce an output. For some problems researchers feed in the output of the previous
-timestep as the input during the output phase. We could also just have padding
-characters be a special symbol. It was not clear to us which one was better, so
-we chose the latter due to simplicity of implementation. So for each input
-which involves the input sequence, the GO symbol, and the padding symbols,
-we will have an output of the same length of all their lengths summed up.
+construct inputs-over-time/outputs-over-time pairs, where each inputs-over-time
+is a sequence of inputs, the GO symbol, and then padding characters of the same length as the
+input sequence. We need the padding characters as the neural network needs an input in order to
+produce an output. We need some way of cajoling it to produce outputs after we are done
+feeding our input sequence in. For some problems researchers feed in the output of the previous
+timestep as the input of the current time step during the output phase,
+instead of the padding character.
+It was not clear to us which one was better, so
+we chose the former due to simplicity of implementation. So for each inputs-over-time,
+which comprise the input sequence, the GO symbol, and the padding symbols,
+we will have an outputs-over-time of the same length.
 Since we only care about the output sequence after the GO symbol,
 our loss function is only computed on that portion.
 
