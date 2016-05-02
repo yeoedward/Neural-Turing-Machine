@@ -4,3 +4,4 @@ tensorflow/
 *.aux
 *.log
 *.pdf
+.DS_Store
