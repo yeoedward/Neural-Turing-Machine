@@ -22,7 +22,7 @@ Original Paper: http://arxiv.org/abs/1410.5401
 ## Checkpoints
 
 Checkpoint files are automatically saved by `copy_task.py` every 1000 training iterations.
-You can reload a saved model and run it using custom inputs using `analyze.py`.
+You can reload a saved model and run it with custom inputs using `analyze.py`.
 You might have to make some changes specific to your experiment.
 
 ## Report
