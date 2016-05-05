@@ -1,6 +1,4 @@
 *.pyc
 log
 tensorflow/
-*.aux
-*.pdf
 .DS_Store
