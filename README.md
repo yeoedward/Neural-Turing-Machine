@@ -32,6 +32,12 @@ You will find the accompanying final report in the `report/` folder. It uses som
 some of the internal state of the NTM, like the read and write head positions that we show in the
 report.
 
+## Code Structure
+
+You will find all the NTM specific code in `ntm.py`. The boilerplate/experiment-harness code for
+the copy task can be found in `copy_task.py`. Files prefixed with `test_` are small test scripts.
+Most of them just check if the code runs without crashing.
+
 ## Resources:
 
 https://www.tensorflow.org/
