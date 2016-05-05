@@ -2,7 +2,7 @@
        Neural Turing Machine}
 \author{
         Eddy Yeo\\
-                eyeo@andrew\\
+                eddy.yeo@gmail.com\\
             \and
         Yue Niu\\
                 TODO\\
@@ -17,7 +17,7 @@
 \maketitle
 
 \begin{abstract}
-We implement the Neural Turing Machine (Graves et al., 2014)\cite{DBLP:journals/corr/GravesWD14},
+We implement the Neural Turing Machine \cite{DBLP:journals/corr/GravesWD14},
 which is a neural network attached to an explicit memory store.
 Given input and output sequences, it is able to learn small programs
 that are remarkably similar to those that a human programmer would
@@ -37,10 +37,10 @@ It is known that there are other models of computation with equivalent
 power -- Church's $\lambda$-calculus, $\mu$-recursive functions and
 Herbrand-G\"odel computability being the few we learned in class. What
 is perhaps the brilliance in the idea is the analogy to human computers.
-A Turing Machine is a human with pen and paper, where the finite state
-control is the mind of the human, the tape is the paper, and the pen is
-the head. It will become clear in the subsequent sections why we
-mention the pen as the head. This beautiful analogy has arisen once
+A Turing Machine is a human with paper and a pen, where the finite state
+control is the mind of the human, the tape is the paper, and the tape head is
+the pen. It will become clear in the subsequent sections why we
+mention the tape head. This beautiful analogy has arisen once
 again, but this time in the field now known as Deep Learning.
 
 The recent increase in the availability of massive datasets and compute
@@ -48,15 +48,17 @@ power through the rise of large internet companies and Moore's Law have
 revived a decades-old sub-field of computer science that has gone through
 multiple rebrandings, the latest one being Deep Learning. These two
 factors combined with various high profile performances of neural nets
-(AlphaGo comes to mind) have resulted in much renewed interest. Two
-innovations, explicit memory and attentional processes are found in
-the Neural Turing Machine.
+(AlphaGo comes to mind) have resulted in much renewed interest. The
+Neural Turing Machine is a neural network that features a relatively recent
+architectural design, making use of both explicit memory and attentional processes.
 
 \paragraph{Outline}
 
 The purpose of this paper is to set the context for our implementation.
 Note that we assume some background knowledge of what a basic feedforward
 neural network is, just to avoid having to describe everything from scratch.
+We also go over the details of the Neural Turing Machine at a high level to
+avoid repeating the content from the original paper.
 The remainder of the paper is thus organized as follows.
 Section~\ref{sequence} gives a brief overview of recurrent
 neural networks and sequence learning.
@@ -71,9 +73,9 @@ We end off with our conclusion in section~\ref{conclusions}.
 
 Recurrent neural networks are neural networks that maintain state. They
 do this by feeding one of their outputs back in as an input in the next time
-step. They are known to be Turing-complete (Siegelmann and Sontag, 1992)\cite{Siegelmann:1992:CPN:130385.130432}
+step. They are known to be Turing-complete \cite{Siegelmann:1992:CPN:130385.130432}
 if the weights are rational, and are even capable of hypercomputation
-if the weights are over the reals (Siegalmann and Sontag, 1994)\cite{SIEGELMANN1994331}.
+if the weights are over the reals \cite{SIEGELMANN1994331}.
 
 They are very good at learning sequences especially if the lengths of
 the sequences are not fixed. In a standard feedforward network, the
@@ -86,7 +88,7 @@ It turns out that learning sequences is hard when there are long-term
 dependencies in the sequence. The basic construction of a recurrent
 neural net, where the outputs of a unit are fed back into itself at the next
 time step, does not work well because we have to encode this dependency
-(over many time-steps) into a recurrent weight that will be applied at every
+(which might skip over many time-steps) into a recurrent weight that will be applied at every
 time-step. A successful solution to this problem are Long Short Term Memory
 networks (LSTMs), that work by implementing gates for the recurrent 
 links in the network, allowing the network to learn when to let information
@@ -102,11 +104,11 @@ It is equipped with an addressing mechanism that allows it to focus its
 attention on a particular spot in memory. This addressing mechanism
 is analogous to the head of a turing machine. Its design is perhaps the
 chief contribution of this paper. In a way, we might say that the Neural
-Turing Machine is more about equipping the human with a pen,
+Turing Machine is more about equipping a neural net with a pen,
 rather than a writing surface, which is more trivial in comparison.
 
-It is composed of three main components: the controller, the heads and 
-the memory bank. The controller is just a regular neural network that will
+It is composed of three main components: the controller, the memory bank and the heads.
+The controller is just a regular neural network that will
 both learn how to use the memory infrastructure via the heads that
 it is provided with, and also predict the outputs
 from the inputs and previous state. It can be a feedfoward network or
@@ -118,16 +120,16 @@ augment its use of RAM.
 
 The memory bank is just a two dimensional matrix that keeps state from
 any output to it from one time step to the next, where it is used
-as input (via a read head). Each column is a cell, and the number of
-rows is the number of cells.
+as input (via a read head). Each row is a cell where a vector can be stored,
+and the number of rows is the number of cells.
 
 The head is a more
 complicated addressing mechanism that chooses where in the memory matrix
-to direct its output (i.e. store state). A key feature is that any writes
+to direct its output (i.e. store state) or read its input. A key feature is that writes
 and reads are what Graves calls ``blurry", meaning that the head interacts
 with the entire memory matrix at once, but is able to control the degree
-of ``focus". This ensures that it remains differentiable, allowing it
-to be trained with the regular gradient descent algorithms. A read at time
+of ``focus" through a weighted vector. This ensures that it remains differentiable, allowing it
+to be trained with the standard gradient descent algorithms. A read at time
 step $t$, which is used as one of the inputs along with the actual $t^{th}$
 input, is just a weighted sum of the memory cells over all the rows:
 
@@ -255,8 +257,8 @@ produce an output. (i.e. we need to cajole it to produce outputs after we are do
 feeding our input sequence in). For some problems researchers feed in the output of the previous
 timestep as the input of the current time step during the output phase,
 instead of the padding character.
-It was not clear to us which one was better, so
-we chose the former due to simplicity of implementation. So for each inputs-over-time,
+We chose the former as we wanted all state to be stored in the memory 
+matrix, for easier interpretability of what our network is doing. So for each inputs-over-time,
 which comprise the input sequence, the GO symbol, and the padding symbols,
 we will have an outputs-over-time of the same length.
 Since we only care about the output sequence after the GO symbol,
@@ -280,7 +282,7 @@ to be able to track of all its state changes.
 We used a single layer of $100$ hidden units, with the rectified linear unit (ReLU)
 as their activation functions. This activation function has been shown to work
 well despite its simplicitly, and also allows efficient training.
-In his Deep Learning textbook (Bengio, 2016)\cite{Goodfellow-et-al-2016-Book}, Yoshua Bengio
+In his Deep Learning textbook \cite{Goodfellow-et-al-2016-Book}, Yoshua Bengio
 mentions it as a good default for a hidden unit. Note that the sigmoid unit is now
 commonly avoided as a hidden unit due to its gradient rapidly vanishing
 as its output approaches either $0$ or $1$, making it less trainable by gradient
@@ -317,7 +319,7 @@ bit vector corresponding to $1$ and the padding symbol is just the bit vector
 corresponding to $0$. We used the average cross-entropy
 of the output sequence after the GO symbol as our loss. We gave the neural
 network a memory matrix of size $50 \times 5$, meaning 50 cells, each cell being
-able to store 5 bits. After 4100 iterations, at which the training loss was
+able to store 5 bits. After 41000 iterations, at which the training loss was
 consistently close to 0, we ran the resulting neural network on several test
 sequences of varying length. We found that the neural network generalized
 extremely well to sequences that were almost ten times the maximum length
@@ -326,7 +328,9 @@ it had seen during training. This is a result of having learned the correct
 of length $40$. The columns represent the bitvectors and the rows span
 the sequence length. Each square is colored with a shade closer to red if the
 bit is closer to 1, and closer to blue if the bit is closer to 0.
-We see perfect recall the length of 40. When we get to 50, and we should
+We see perfect recall up to the length of 40, which is 8 times the maximum
+length of any sequence the neural net had seen during training.
+When we get to 50, and we should
 note that this is at the limit of the memory store that the neural network
 is equipped with, we see from figure 2 that there are some minor corruptions
 in the output.
@@ -347,7 +351,7 @@ this problem. For each input, write it into the memory store and advance one cel
 When the
 GO symbol is seen, start iterating over the saved input and output it.
 Figure 3 below shows exactly this pattern. Each row represents the tape
-at a specific time step, spanning over all time steps. The write head is seen to
+at a specific time step, with the rows spanning over all time steps. The write head is seen to
 be iterating until it has written 30 characters. Meanwhile the read head stays
 put, and when 30 characters are seen it starts iterating. We chose this example
 to show clearly that while the heads can approximate a turing machine head
