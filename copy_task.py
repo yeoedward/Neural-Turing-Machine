@@ -144,7 +144,6 @@ def train(
       feed_dict={
         model['x']: xs,
         model['y']: ys,
-        #model['istate']: istate,
         model['steps']: nsteps,
       },
     )
@@ -154,7 +153,6 @@ def train(
           feed_dict={
             model['x']: xs,
             model['y']: ys,
-            #model['istate']: istate,
             model['steps']: nsteps,
           },
         )
