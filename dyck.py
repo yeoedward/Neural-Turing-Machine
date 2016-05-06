@@ -4,53 +4,101 @@ import numpy as np
 import random
 import ntm
 
+def oparen(nbits):
+  return to_binary(2**nbits - 1, nbits)
+def cparen(nbits):
+  return to_binary(2**nbits - 2, nbits)
+
+def to_binary(num, nbits):
+  return [int(digit) for digit in ('{0:0' + str(nbits) + 'b}').format(num)]
+
+def dyck_word(seq_len, nbits):
+  assert seq_len % 2 == 0
+  # S -> epsilon
+  if seq_len == 0: return []
+  # S -> (S)
+  if random.randint(0, 1) == 0:
+    return [oparen(nbits)] + dyck_word(seq_len - 2, nbits) + [cparen(nbits)]
+  # S -> SS
+  first_len = 2 * random.randint(0, seq_len / 2)
+  second_len = seq_len - first_len
+  return dyck_word(first_len, nbits) + dyck_word(second_len, nbits)
+
+def is_dyck_word(seq, nbits):
+  counter = 0
+  for c in seq:
+    if c == oparen(nbits):
+      counter += 1
+    elif c == cparen(nbits):
+      counter -= 1
+      if counter < 0: return 0
+    else: # Non-paren character.
+      return 0
+  return 1 if counter == 0 else 0
+
+def gen_seq(nseqs, max_steps, seq_len, nbits):
+  nsteps = seq_len + 2
+  assert nsteps <= max_steps
+  assert seq_len % 2 == 0
+  zeros = [0] * nbits
+  GO = [0] * (nbits - 1) + [1]
+  xs = []
+  ys = []
+  for _ in xrange(nseqs):
+    if random.randint(0, 1) == 0:
+      # Generate dyck word.
+      # We don't want to leave it to randomness as our training data
+      # might have too many negative examples.
+      seq = dyck_word(seq_len, nbits)
+      y = 1
+    else:
+      # Generate random word, might or might not be dyck word.
+      # Note that we reserve the 0 and 1 in binary as the 
+      # padding and delimeter symbols.
+      seq = [random.randint(2, 2**nbits - 1) for _ in xrange(seq_len)]
+      # Convert each int to binary
+      seq = [
+              to_binary(num, nbits)
+              for num in seq
+            ]
+      y = is_dyck_word(seq, nbits)
+    npad = max_steps - nsteps
+    pad = [zeros] * npad
+    x = seq + [GO] + [zeros] + pad
+    xs.append(x)
+    ys.append(y)
+  return np.array(xs), np.array(ys), np.tile(nsteps, nseqs)
+
 # Define loss and optimizer
 def var_seq_loss(preds, y, nsteps):
-  seq_len = (nsteps[0] - 1) / 2
-  start = seq_len + 1
+  start = nsteps[0] - 1
   output_seq = tf.slice(
     preds,
     tf.pack([0, start, 0]),
-    tf.pack([-1, seq_len, -1]),
+    tf.pack([-1, 1, -1]),
   )
   return tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(output_seq, y))
 
-def predict(out, nsteps):
+def predict(out, nsteps, y):
   pred = tf.sigmoid(out)
-  seq_len = (nsteps[0] - 1) / 2
-  start = seq_len + 1
+  start = nsteps[0] - 1
   rel_pred = tf.slice(
     pred,
     tf.pack([0, start, 0]),
-    tf.pack([-1, seq_len, -1]),
+    tf.pack([-1, 1, -1]),
   )
+  rel_pred = tf.Print(rel_pred, [y], "Expected")
+  rel_pred = tf.Print(rel_pred, [rel_pred], "Predicted")
   return rel_pred
-
-def bits_err_per_seq(out, expected, nsteps):
-  rel_pred = predict(out, nsteps)
-  rel_pred = tf.Print(
-    rel_pred,
-    [tf.slice(rel_pred, [0, 0, 0], [1, -1, 1])],
-    "predicted",
-    summarize=20,
-  )
-  expected = tf.Print(
-    expected,
-    [tf.slice(expected, [0, 0, 0], [1, -1, 1])],
-    "expected",
-    summarize=20,
-  )
-  diff = rel_pred - expected
-  return tf.reduce_mean(tf.reduce_sum(tf.abs(diff), [1, 2]))
 
 def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
   # Batch size, max_steps, n_input
   x = tf.placeholder("float", [None, None, n_input])
-  y = tf.placeholder("float", [None, None, n_input])
+  y = tf.placeholder("float")
   nsteps = tf.placeholder("int32")
   ntm_cell = ntm.NTMCell(
       n_inputs=n_input,
-      n_outputs=n_input,
+      n_outputs=1,
       n_hidden=100,
       mem_nrows=mem_nrow,
       mem_ncols=mem_ncol,
@@ -65,7 +113,6 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
 
   # Loss measures
   cost = var_seq_loss(outputs, y, nsteps)
-  err = bits_err_per_seq(outputs, y, nsteps)
 
   # Optimizer params as described in paper.
   opt = tf.train.RMSPropOptimizer(
@@ -84,45 +131,19 @@ def create_rnn(max_steps, n_input, mem_nrow, mem_ncol):
     'y': y,
     'steps': nsteps,
     'cost': cost,
-    'err': err,
     'optimizer': optimizer,
-    'pred': predict(outputs, nsteps),
+    'pred': predict(outputs, nsteps, y),
   }
-
-def gen_seq(nseqs, max_steps, seq_len, nbits):
-  nsteps = 2*seq_len + 1
-  assert nsteps <= max_steps
-  zeros = [0] * nbits
-  GO = [0] * (nbits - 1) + [1]
-  xs = []
-  ys = []
-  for _ in xrange(nseqs):
-    # Note that we reserve the 0 and 1 in binary as the 
-    # padding and delimeter symbols
-    seq = [random.randint(2, 2**nbits - 1) for _ in xrange(seq_len)]
-    # Convert each int to binary
-    seq = [
-            [int(digit) for digit in ('{0:0' + str(nbits) + 'b}').format(num)]
-            for num in seq
-          ]
-    npad = max_steps - nsteps
-    pad = [zeros] * npad
-    # Dummy inputs after the delimeter / outputs before the delimiter
-    dummies = [zeros] * seq_len
-    x = seq + [GO] + dummies + pad
-    xs.append(x)
-    ys.append(seq)
-  return np.array(xs), np.array(ys), np.tile(nsteps, nseqs)
 
 def train(
     model,
     n_input,
     max_steps,
-    training_iters=1e8,
-    batch_size=128,
+    batch_size,
+    seq_len_min,
+    seq_len_max,
     display_step=10,
-    seq_len_min=1,
-    seq_len_max=20,
+    training_iters=1e8,
     ):
   sess = tf.Session()
   # Initializing the variables
@@ -136,7 +157,7 @@ def train(
     (xs, ys, nsteps) = gen_seq(
       nseqs=batch_size,
       max_steps=max_steps,
-      seq_len=random.randint(seq_len_min, seq_len_max),
+      seq_len=2*random.randint(seq_len_min, seq_len_max/2),
       nbits=n_input,
     )
     sess.run(
@@ -144,23 +165,20 @@ def train(
       feed_dict={
         model['x']: xs,
         model['y']: ys,
-        #model['istate']: istate,
         model['steps']: nsteps,
       },
     )
     if step % display_step == 0:
-        err, loss = sess.run(
-          [model['err'], model['cost']],
+        _, loss = sess.run(
+          [model['pred'], model['cost']],
           feed_dict={
             model['x']: xs,
             model['y']: ys,
-            #model['istate']: istate,
             model['steps']: nsteps,
           },
         )
         print "Iter " + str(step*batch_size) + (
-          ", Minibatch Loss= " + "{:.6f}".format(loss) +
-          ", Average bit errors= " + "{:.6f}".format(err)
+          ", Minibatch Loss= " + "{:.6f}".format(loss)
         )
     if step % 1000 == 0:
       save_path = saver.save(sess, "checkpoints/model" + str(step) + ".ckpt")
@@ -171,9 +189,9 @@ def train(
   print "Optimization Finished!"
 
 # Training Parameters
-max_steps = 11
+max_steps = 10
 seq_len_min = 1
-seq_len_max = 5
+seq_len_max = 8
 batch_size = 1
 n_input = 3
 mem_nrow = 50
