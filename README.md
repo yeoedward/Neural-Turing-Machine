@@ -17,7 +17,7 @@ Original Paper: http://arxiv.org/abs/1410.5401
   This generates the `.so` file that will be loaded by `ntm.py`. If you did not clone tensorflow
   into the root folder of this project as instructed, please modify the path in `ntm.py` accordingly.
   
-  3. To execute the copy task, run `python copy.task`.
+  3. To execute the copy task, run `python copy_task.py`.
   
 ## Checkpoints
 
