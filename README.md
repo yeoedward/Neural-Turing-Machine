@@ -36,7 +36,9 @@ report.
 
 You will find all the NTM specific code in `ntm.py`. The boilerplate/experiment-harness code for
 the copy task can be found in `copy_task.py`. Files prefixed with `test_` are small test scripts.
-Most of them just check if the code runs without crashing.
+Most of them just check if the code runs without crashing. The experiment code
+for the context-free parenthesis language experiment can be found in `dyck_task.py`.
+Unfortunately due to lack of time we were unable to write it up.
 
 ## Resources:
 
