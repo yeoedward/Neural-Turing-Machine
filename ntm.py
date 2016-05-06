@@ -239,7 +239,6 @@ class NTMCell(rnn_cell.RNNCell):
   def controller(self, inputs, reads):
     weights, biases = self.get_params()
     first_layer = tf.concat(1, [inputs] + reads)
-    #first_layer = tf.Print(first_layer, [first_layer], "first_layer", summarize=20)
     hidden = tf.matmul(first_layer, weights["hidden"]) + biases["hidden"]
     hidden = tf.nn.relu(hidden)
 
@@ -276,16 +275,6 @@ class NTMCell(rnn_cell.RNNCell):
     wg = head["interp"] * wc + (1 - head["interp"]) * w0
     ws = rotate.ntm_rotate(wg, head["shift"])
     ws_pow = tf.pow(ws, head["sharp"])
-
-    #ws_pow = tf.Print(ws_pow, [w0], "w0", summarize=1000)
-    #ws_pow = tf.Print(ws_pow, [key], "key", summarize=1000)
-    #ws_pow = tf.Print(ws_pow, [head["key_str"]], "key_str", summarize=1000)
-    #ws_pow = tf.Print(ws_pow, [wc], "wc", summarize=1000)
-    #ws_pow = tf.Print(ws_pow, [head["interp"]], "interp", summarize=1000)
-    #ws_pow = tf.Print(ws_pow, [head["shift"]], "shift", summarize=1000)
-    #ws_pow = tf.Print(ws_pow, [wg], "wg", summarize=1000)
-    #ws_pow = tf.Print(ws_pow, [head["sharp"]], "sharp", summarize=1000)
-    #ws_pow = tf.Print(ws_pow, [ws_pow], "ws_pow", summarize=1000)
 
     w1 = ws_pow / tf.reduce_sum(ws_pow, 1, keep_dims=True)
 
